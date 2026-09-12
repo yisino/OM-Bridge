@@ -1,0 +1,50 @@
+# --- 运行时产物（绝不入库） -------------------------------------------------
+# 生成出来的视频/图片属于产物，不是源码；参考图也可能是第三方素材，
+# 一概不入库，只留 examples/refs/README.md 说明怎么放自己的。
+var/
+output/
+*.mp4
+*.mov
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# --- 配置与密钥 --------------------------------------------------------------
+# 约定：仓库里只允许出现 *.env.example 模板；任何真实 .env 都不入库。
+.env
+.env.local
+.env.*.local
+*.env
+# 例外：模板文件必须能进来（.env.example 不以 .env 结尾，因此本就安全，
+# 这里显式写出是为了让规则意图对读者可见）
+!*.env.example
+# 带时间戳的备份一定含明文密钥，必须挡住
+# （历史教训：原有规则只挡 .env / *.env，挡不住 .env.bak.*，一次 git add -A 就会泄露）
+.env.bak.*
+.env.*.orig
+*.orig-*
+*.bak
+*.bak.*
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- 编辑器 / 系统 -----------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

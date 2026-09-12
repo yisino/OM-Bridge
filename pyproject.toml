@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "om-bridge"
+version = "0.1.0"
+description = "可扩展的 AI 生成能力桥接层：多后端（Backend）× 多方案（Solution），提供 CLI / MCP / SDK 三种交付面"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "OM-Bridge contributors" }]
+keywords = ["comfyui", "video-generation", "mcp", "adapter", "bridge", "plugin"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Multimedia :: Video :: Non-Linear Editor",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# ---------------------------------------------------------------------------
+# 核心运行时零依赖（纯标准库）。
+# 这不是"图省事"，而是一条硬性设计约束：
+#   目标机常常是生产 GPU 主机/内网服务器，没有 pip 镜像、也不能污染环境。
+# 因此传输层用 urllib、配置解析自己写、MCP 握手自己实现。
+# 第三方依赖只出现在可选扩展里，且必须可缺省降级。
+# ---------------------------------------------------------------------------
+dependencies = []
+
+[project.optional-dependencies]
+# WebSocket 可选：装了走 WS 实时进度，没装退回 /history 轮询（功能等价，只是没有实时日志）
+ws = ["websocket-client>=1.6"]
+dev = [
+  "pytest>=7.4",
+  "ruff>=0.5",
+]
+
+[project.urls]
+Documentation = "https://github.com/yisino/OM-Bridge/blob/main/docs/README.md"
+Source = "https://github.com/yisino/OM-Bridge"
+
+[project.scripts]
+om-bridge = "om_bridge.interfaces.cli:main"
+om-bridge-mcp = "om_bridge.interfaces.mcp:main"
+
+# 第三方实现（Backend / Solution）接入点。
+# 装了带此 entry point 的包，OM-Bridge 启动时会自动发现，无需改一行核心代码。
+# 详见 docs/design/0003-registry-autodiscovery.md
+[project.entry-points."om_bridge.backends"]
+# myengine = "my_pkg.backend:MyEngineBackend"
+# comfyui 是内置实现，走包扫描而非 entry point（否则裸源码树 / PYTHONPATH 模式下会找不到）。
+# 只有**第三方**实现才需要在这里登记自己那一行。
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# 非 .py 的包内资源：方案自带的 API 格式工作流模板
+[tool.setuptools.package-data]
+"om_bridge.backends.comfyui.solutions.minimax_h3" = ["templates/*.json"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+markers = [
+  # 需要真实后端在线的测试。默认测试集**不包含**它们（`make test-fast` 会排除）。
+  "network: 需要可达的后端（例如真实 ComfyUI 实例）",
+]
