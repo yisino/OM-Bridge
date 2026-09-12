@@ -28,6 +28,7 @@
 - [`user-guide.md`](user-guide.md) —— 使用手册：三个交付面（CLI / MCP / Python SDK）的完整用法与示例。
 - [`deployment.md`](deployment.md) —— 部署手册：安装模式、配置分层、多机拓扑、升级与回滚。
 - [`troubleshooting.md`](troubleshooting.md) —— 排障手册：**按症状索引**，含本项目历史上踩过的真实坑。
+- [`development.md`](development.md) —— 开发环境：`.venv` 创建与启用、依赖安装、测试与 lint。
 
 ### 扩展
 

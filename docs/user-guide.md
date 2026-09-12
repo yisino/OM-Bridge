@@ -244,7 +244,7 @@ stdio 服务，命令就是可执行名（未安装时用 python 绝对路径 + 
       "command": "om-bridge-mcp",
       "args": [],
       "env": {
-        "OM_BRIDGE_COMFY_SERVER_URL": "http://192.168.3.3:8188",
+        "OMB_COMFY_SERVER_URL": "http://192.168.3.3:8188",
         "NO_PROXY": "192.168.3.3,127.0.0.1,localhost"
       }
     }
@@ -356,7 +356,7 @@ with Session(load_config()) as session:
 ### 配方 A：跨机生成（后端在另一台机器，模型已常驻）
 
 ```bash
-export OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
+export OMB_COMFY_SERVER_URL=http://192.168.3.3:8188
 export NO_PROXY=192.168.3.3,127.0.0.1,localhost
 om-bridge doctor
 om-bridge generate -s minimax_h3.ref2v -p "..." --reference-image ref.png
@@ -401,8 +401,8 @@ done
 
 ```bash
 # 在 .env 里
-OM_BRIDGE_SOLUTION_MINIMAX_H3_STEPS=4
-OM_BRIDGE_SOLUTION_MINIMAX_H3_TURBO_LORA=minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors
+OMB_MINIMAX_H3_STEPS=4
+OMB_MINIMAX_H3_TURBO_LORA=minimax_h3_fl2v_turbo_4step_v1.0_768p_comfyui_bf16.safetensors
 ```
 
 配置的默认值**优先于**代码内置默认值（见 [core.schema](module-reference.md#coreschema)），

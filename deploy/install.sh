@@ -137,17 +137,17 @@ else
   cp "${PROJECT_ROOT}/config/om-bridge.env.example" "$ENV_TARGET"
   chmod 600 "$ENV_TARGET"
   ok "已生成配置：${ENV_TARGET}（权限 600）"
-  warn "请编辑它，至少把 OM_BRIDGE_COMFY_SERVER_URL 与 OM_BRIDGE_WORKSPACE 改成实际值"
+  warn "请编辑它，至少把 OMB_COMFY_SERVER_URL 与 OMB_WORKSPACE 改成实际值"
 fi
 
 echo
 info "安装完成。下一步："
 cat <<EOF
   1) 编辑配置：        \$EDITOR ${ENV_TARGET}
-  2) 体检：            OM_BRIDGE_ENV_FILE=${ENV_TARGET} ${PREFIX}/bin/om-bridge doctor
+  2) 体检：            OMB_ENV_FILE=${ENV_TARGET} ${PREFIX}/bin/om-bridge doctor
   3) 看一眼有哪些方案：${PREFIX}/bin/om-bridge list
   4) 首次生成：
-       OM_BRIDGE_ENV_FILE=${ENV_TARGET} \\
+       OMB_ENV_FILE=${ENV_TARGET} \\
        ${PREFIX}/bin/om-bridge generate -s minimax_h3.t2v -p "海边的灯塔，缓慢推镜"
 EOF
 

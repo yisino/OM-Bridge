@@ -56,7 +56,7 @@ ToolStatus.DEGRADED → AVAILABLE
    用一个布尔值表达它必然导致误判（这也是"t2v 能跑却整体被判不可用"的成因）。
 
 3. **声明可以被重新解释**：方案通过 `config_defaults()` 让"本机实际装了哪些权重"可由配置覆盖
-   （`OM_BRIDGE_SOLUTION_MINIMAX_H3_UNET` 等）。所以换权重不需要改代码，
+   （`OMB_MINIMAX_H3_UNET` 等）。所以换权重不需要改代码，
    也就不会出现"代码里的清单与现实不符"。
 
 4. **对外发布时把名单交出去**：`publish.py` 会把方案的 `preflight_models` 写成

@@ -136,9 +136,10 @@ AssetRequirement(role="diffusion_model", category=COMFYUI_UNET,
 
 **职责**：把"环境变量 / `.env` / 默认值"合成一个可自省、可解释的配置对象。
 
-- `Setting(key, env, default, type, description, aliases, secret, deprecated_alias)`：一个配置项的定义。
-  `key`（如 `backend.comfyui.server_url`）是**程序内名字**，`env` 是**环境变量名**，两者分开是为了
-  让程序内引用稳定、而部署侧可以改名。
+- `Setting(key, env, default, type, description, secret, choices)`：一个配置项的定义。
+  `key`（如 `backend.comfyui.server_url`）是**程序内名字**，`env` 是**环境变量名**（统一
+  `OMB_` 短前缀），两者分开是为了让程序内引用稳定、而部署侧可以改名。
+  `choices` 为开放枚举（越界只告警不报错，见 [ADR-0009](design/0009-config-naming-v2.md)）。
 - `parse_env_file(path)`：自带解析器（引号、行内注释、`export` 前缀、空值），无第三方依赖。
 - `Config` 的关键方法：
 
@@ -343,69 +344,70 @@ MCP 工具：`om_bridge_list`、`om_bridge_describe`、`om_bridge_check`、`om_b
 
 ## 配置项总表
 
-规范名以 `OM_BRIDGE_` 前缀，括号内为该键的**旧名别名**（等同优先级）。
+全部规范名以 **`OMB_` 短前缀**命名（见 [ADR-0009](design/0009-config-naming-v2.md)）。
+旧版 `OM_BRIDGE_*` 与 `COMFYUI_*` 别名已移除、不再被读取；环境里的残留旧变量会被
+`config report --include-unknown-env` 点名。"枚举"列列出开放枚举的合法取值。
 
 ### global
 
-| 键 | 环境变量 | 默认 | 说明 |
-|---|---|---|---|
-| `global.default_backend` | `OM_BRIDGE_DEFAULT_BACKEND` | `comfyui` | 默认后端名 |
-| `global.default_solution` | `OM_BRIDGE_DEFAULT_SOLUTION` | `minimax_h3` | 默认方案键 |
-| `global.workspace` | `OM_BRIDGE_WORKSPACE` | `.` | 工作区根目录 |
-| `global.output_dir` | `OM_BRIDGE_OUTPUT_DIR` | 空 → `<ws>/var/output` | 产物落盘目录 |
-| `global.connect_timeout` | `OM_BRIDGE_CONNECT_TIMEOUT` | `15` | 连接/轻量探测超时（秒） |
-| `global.timeout` | `OM_BRIDGE_TIMEOUT` | `900` | 作业总超时（秒）。**超时≠失败** |
-| `global.poll_interval` | `OM_BRIDGE_POLL_INTERVAL` | `5` | 轮询间隔（秒），被后端专属值覆盖 |
-| `global.validate` | `OM_BRIDGE_VALIDATE` | `true` | 提交前静态校验 |
-| `global.strict` | `OM_BRIDGE_STRICT` | `false` | 告警也视为阻断。`validate` 报告与 `generate` 放行共用同一条判定（CI 用） |
-| `global.log_level` | `OM_BRIDGE_LOG_LEVEL` | `INFO` | 日志级别。⚠ 只认进程环境变量（日志先于 `.env` 初始化），写在 `.env` 里不生效 |
-| `global.env_file` | `OM_BRIDGE_ENV_FILE` | 空 | 显式指定配置文件 |
+| 键 | 环境变量 | 默认 | 枚举 | 说明 |
+|---|---|---|---|---|
+| `global.default_backend` | `OMB_DEFAULT_BACKEND` | `comfyui` | `comfyui` / `mock`（第三方插件可扩展） | 默认后端名 |
+| `global.default_solution` | `OMB_DEFAULT_SOLUTION` | `minimax_h3` | `minimax_h3` / `echo`（可带 `.模式` 后缀；插件可扩展） | 默认方案键 |
+| `global.workspace` | `OMB_WORKSPACE` | `.` | — | 工作区根目录 |
+| `global.output_dir` | `OMB_OUTPUT_DIR` | 空 → `<ws>/var/output` | — | 产物落盘目录 |
+| `global.connect_timeout` | `OMB_CONNECT_TIMEOUT` | `15` | — | 连接/轻量探测超时（秒） |
+| `global.timeout` | `OMB_TIMEOUT` | `900` | — | 作业总超时（秒）。**超时≠失败** |
+| `global.poll_interval` | `OMB_POLL_INTERVAL` | `5` | — | 轮询间隔（秒），被后端专属值覆盖 |
+| `global.validate` | `OMB_VALIDATE` | `true` | — | 提交前静态校验 |
+| `global.strict` | `OMB_STRICT` | `false` | — | 告警也视为阻断。`validate` 报告与 `generate` 放行共用同一条判定（CI 用） |
+| `global.log_level` | `OMB_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` | 日志级别。⚠ 只认进程环境变量（日志先于 `.env` 初始化），写在 `.env` 里不生效 |
+| `global.env_file` | `OMB_ENV_FILE` | 空 | — | 显式指定配置文件 |
 
 ### backend.comfyui
 
-| 键 | 环境变量（旧名） | 默认 | 说明 |
+| 键 | 环境变量 | 默认 | 说明 |
 |---|---|---|---|
-| `backend.comfyui.server_url` | `OM_BRIDGE_COMFY_SERVER_URL`（旧名 `OM_BRIDGE_COMFYUI_SERVER_URL` / `COMFYUI_SERVER_URL`，已废弃但仍有效） | `http://localhost:8188` | 基地址 |
-| `backend.comfyui.video_server_url` | `OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL` (`COMFYUI_VIDEO_SERVER_URL`) | 空 → 继承 | 视频能力专用地址 |
-| `backend.comfyui.image_server_url` | `..._IMAGE_SERVER_URL` (`COMFYUI_IMAGE_SERVER_URL`) | 空 → 继承 | 图像能力专用地址 |
-| `backend.comfyui.music_server_url` | `..._MUSIC_SERVER_URL` (`COMFYUI_MUSIC_SERVER_URL`) | 空 → 继承 | 音频能力专用地址 |
-| `backend.comfyui.base_url` | `OM_BRIDGE_COMFYUI_BASE_URL` (`COMFYUI_BASE_URL`) | 空 | ⚠ **已废弃别名**，优先级最低 |
-| `backend.comfyui.connect_timeout` | `OM_BRIDGE_COMFYUI_CONNECT_TIMEOUT` (`COMFYUI_CONNECT_TIMEOUT`) | `15` | 轻量请求超时 |
-| `backend.comfyui.read_timeout` | `OM_BRIDGE_COMFYUI_READ_TIMEOUT` (`COMFYUI_READ_TIMEOUT`) | `900` | 单次渲染总超时 |
-| `backend.comfyui.poll_interval` | `OM_BRIDGE_COMFYUI_POLL_INTERVAL` (`COMFYUI_POLL_INTERVAL`) | `5` | `/history` 轮询间隔，**按后端覆盖**全局值；显式置 `0` 视为未配置 |
-| `backend.comfyui.api_token` | `OM_BRIDGE_COMFYUI_API_TOKEN` (`COMFYUI_API_TOKEN`) | 空 | Bearer token（**secret**） |
-| `backend.comfyui.auth_user` | `OM_BRIDGE_COMFYUI_AUTH_USER` (`COMFYUI_AUTH_USER`) | 空 | Basic 用户名（**secret**） |
-| `backend.comfyui.auth_password` | `OM_BRIDGE_COMFYUI_AUTH_PASSWORD` (`COMFYUI_AUTH_PASSWORD`) | 空 | Basic 密码（**secret**） |
-| `backend.comfyui.upload_timeout` | `OM_BRIDGE_COMFYUI_UPLOAD_TIMEOUT` | `300` | 单次上传超时 |
-| `backend.comfyui.object_info_timeout` | `OM_BRIDGE_COMFYUI_OBJECT_INFO_TIMEOUT` | `180` | 拉取 `/object_info` 超时 |
+| `backend.comfyui.server_url` | `OMB_COMFY_SERVER_URL` | `http://localhost:8188` | 基地址 |
+| `backend.comfyui.video_server_url` | `OMB_COMFY_VIDEO_SERVER_URL` | 空 → 继承 | 视频能力专用地址 |
+| `backend.comfyui.image_server_url` | `OMB_COMFY_IMAGE_SERVER_URL` | 空 → 继承 | 图像能力专用地址 |
+| `backend.comfyui.music_server_url` | `OMB_COMFY_MUSIC_SERVER_URL` | 空 → 继承 | 音频能力专用地址 |
+| `backend.comfyui.connect_timeout` | `OMB_COMFY_CONNECT_TIMEOUT` | `15` | 轻量请求超时 |
+| `backend.comfyui.read_timeout` | `OMB_COMFY_READ_TIMEOUT` | `900` | 单次渲染总超时 |
+| `backend.comfyui.poll_interval` | `OMB_COMFY_POLL_INTERVAL` | `5` | `/history` 轮询间隔，**按后端覆盖**全局值；显式置 `0` 视为未配置 |
+| `backend.comfyui.api_token` | `OMB_COMFY_API_TOKEN` | 空 | Bearer token（**secret**） |
+| `backend.comfyui.auth_user` | `OMB_COMFY_AUTH_USER` | 空 | Basic 用户名（**secret**） |
+| `backend.comfyui.auth_password` | `OMB_COMFY_AUTH_PASSWORD` | 空 | Basic 密码（**secret**） |
+| `backend.comfyui.upload_timeout` | `OMB_COMFY_UPLOAD_TIMEOUT` | `300` | 单次上传超时 |
+| `backend.comfyui.object_info_timeout` | `OMB_COMFY_OBJECT_INFO_TIMEOUT` | `180` | 拉取 `/object_info` 超时 |
 
-> ⚠ `COMFYUI_BASE_URL` 是**为了兼容而保留的废弃名**：OpenMontage 从来不读它。
-> 新部署请只用 `server_url`。工具（如 `doctor` / `config report`）会对它给出告警。
+> ⚠ 已删除：`backend.comfyui.base_url`（原 `COMFYUI_BASE_URL`）。OpenMontage 从不读它，
+> 登记它只会制造"设了没效果"的陷阱；配置里如果还留着，可删。
 
 ### solution.minimax_h3
 
 > 表中 `..._X` 是缩写：键列 = `solution.minimax_h3.<小写x>`，
-> 环境变量列 = `OM_BRIDGE_SOLUTION_MINIMAX_H3_<X>`（旧名 `COMFYUI_MINIMAX_H3_<X>`）。
+> 环境变量列 = `OMB_MINIMAX_H3_<X>`。
 > 全部 16 项与代码登记表逐项一致（人工核对于 2026-09-12）。
 
-| 键 | 环境变量（旧名） | 默认 | 说明 |
-|---|---|---|---|
-| `..._WIDTH` | `OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH` (`COMFYUI_MINIMAX_H3_WIDTH`) | `864` | 宽度（32 的倍数） |
-| `..._HEIGHT` | `..._HEIGHT` (`COMFYUI_MINIMAX_H3_HEIGHT`) | `480` | 高度（32 的倍数） |
-| `..._LENGTH` | `..._LENGTH` (`COMFYUI_MINIMAX_H3_LENGTH`) | `124` | 帧数（24fps，吸附 17k+5 栅格） |
-| `..._FPS` | `..._FPS` (`COMFYUI_MINIMAX_H3_FPS`) | `24` | 封装帧率 |
-| `..._STEPS` | `..._STEPS` (`COMFYUI_MINIMAX_H3_STEPS`) | `0` | 0=按模式自动（ref2v→4，其余→8） |
-| `..._UNET` | `..._UNET` | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | t2v/i2v/flf2v 扩散模型 |
-| `..._CLIP` | `..._CLIP` | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | 文本编码器 |
-| `..._VIDEO_VAE` | `..._VIDEO_VAE` | `minimax_h3_video_vae_fp16.safetensors` | 视频 VAE |
-| `..._AUDIO_VAE` | `..._AUDIO_VAE` | `minimax_h3_audio_vae_fp32.safetensors` | 音频 VAE（缺则**没有音轨**） |
-| `..._TURBO_LORA` | `..._TURBO_LORA` | `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors` | 8 步 LoRA |
-| `..._REF2V_UNET` | `..._REF2V_UNET` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | ref2v 专用（**不可与 fl2va 互换**） |
-| `..._REF2V_TURBO_LORA` | `..._REF2V_TURBO_LORA` | `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors` | ref2v 4 步 LoRA |
-| `..._REF2V_IMAGE_SIZE` | `..._REF2V_IMAGE_SIZE` | `match` | `match`=缩到生成分辨率（快）/ `max`=保留 2048px（身份保真、慢数倍） |
-| `..._REF2V_IMAGES` | `..._REF2V_IMAGES` | 空 | 默认参考图文件名（list，逗号分隔） |
-| `..._PREFLIGHT_MODELS` | `..._PREFLIGHT_MODELS` (`COMFYUI_H3_LOCAL_MODELS`) | 空 | 对外声明"本机 H3 就绪"的权重名（供 OpenMontage 集成） |
-| `..._GRAPH_DIR` | `..._GRAPH_DIR` | 空 → `<ws>/var/graphs` | 物化计算图落盘目录 |
+| 键 | 环境变量 | 默认 | 枚举 | 说明 |
+|---|---|---|---|---|
+| `..._WIDTH` | `OMB_MINIMAX_H3_WIDTH` | `864` | — | 宽度（32 的倍数） |
+| `..._HEIGHT` | `OMB_MINIMAX_H3_HEIGHT` | `480` | — | 高度（32 的倍数） |
+| `..._LENGTH` | `OMB_MINIMAX_H3_LENGTH` | `124` | — | 帧数（24fps，吸附 17k+5 栅格） |
+| `..._FPS` | `OMB_MINIMAX_H3_FPS` | `24` | — | 封装帧率 |
+| `..._STEPS` | `OMB_MINIMAX_H3_STEPS` | `0` | — | 0=按模式自动（ref2v→4，其余→8） |
+| `..._UNET` | `OMB_MINIMAX_H3_UNET` | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | — | t2v/i2v/flf2v 扩散模型 |
+| `..._CLIP` | `OMB_MINIMAX_H3_CLIP` | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | — | 文本编码器 |
+| `..._VIDEO_VAE` | `OMB_MINIMAX_H3_VIDEO_VAE` | `minimax_h3_video_vae_fp16.safetensors` | — | 视频 VAE |
+| `..._AUDIO_VAE` | `OMB_MINIMAX_H3_AUDIO_VAE` | `minimax_h3_audio_vae_fp32.safetensors` | — | 音频 VAE（缺则**没有音轨**） |
+| `..._TURBO_LORA` | `OMB_MINIMAX_H3_TURBO_LORA` | `minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors` | — | 8 步 LoRA |
+| `..._REF2V_UNET` | `OMB_MINIMAX_H3_REF2V_UNET` | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | — | ref2v 专用（**不可与 fl2va 互换**） |
+| `..._REF2V_TURBO_LORA` | `OMB_MINIMAX_H3_REF2V_TURBO_LORA` | `minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors` | — | ref2v 4 步 LoRA |
+| `..._REF2V_IMAGE_SIZE` | `OMB_MINIMAX_H3_REF2V_IMAGE_SIZE` | `match` | `match` / `max` | `match`=缩到生成分辨率（快）/ `max`=保留 2048px（身份保真、慢数倍） |
+| `..._REF2V_IMAGES` | `OMB_MINIMAX_H3_REF2V_IMAGES` | 空 | — | 默认参考图文件名（list，逗号分隔） |
+| `..._PREFLIGHT_MODELS` | `OMB_MINIMAX_H3_PREFLIGHT_MODELS` | 空 | — | 对外声明"本机 H3 就绪"的权重名（publish 层写出 `COMFYUI_H3_LOCAL_MODELS` 供 OpenMontage 读取） |
+| `..._GRAPH_DIR` | `OMB_MINIMAX_H3_GRAPH_DIR` | 空 → `<ws>/var/graphs` | — | 物化计算图落盘目录 |
 
 > ⚠ **已移除、不再读取**的旧变量：`COMFYUI_MINIMAX_H3_WORKFLOW_PATH`、`_OUTPUT_NODE`、
 > `COMFYUI_MINIMAX_H3_REF2V_WORKFLOW_PATH`、`_REF2V_OUTPUT_NODE`。

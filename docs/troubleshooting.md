@@ -173,7 +173,7 @@ om-bridge generate -s minimax_h3 -p "..." --set seed=$RANDOM --json
 优化方向（按收益排序）：
 
 1. **让模型常驻**（别让后端在你两次调用之间释放模型）。
-2. 调大 `OM_BRIDGE_POLL_INTERVAL`（后端慢时减少无谓请求）。
+2. 调大 `OMB_POLL_INTERVAL`（后端慢时减少无谓请求）。
 3. 降 `length`（帧数是线性成本）。
 4. 只在需要身份保真时才把 `ref_image_size` 设成 `max`（保留 2048px，慢数倍）。
 
@@ -203,8 +203,15 @@ om-bridge config report           # 你写的变量是否被登记
 
 1. **变量名写错**（未被登记）→ `config report` 会把它列在"未登记变量"里。
    本项目的原则是**不造 no-op 变量**：代码不读的变量不该出现在配置里。
-2. **优先级搞反**：环境变量 > `.env`。你的 shell 里可能 export 了旧值（`env | grep COMFYUI`）。
+2. **优先级搞反**：环境变量 > `.env`。你的 shell 里可能 export 了旧值（`env | grep OMB_`）。
 3. **读的是另一个文件**：`config explain` 会显示来源文件路径。
+
+### 症状：`.env` 里有 `OM_BRIDGE_*` 或 `COMFYUI_*` 开头的旧变量
+
+**旧名通道已移除，不再被读取**（见 [ADR-0009](design/0009-config-naming-v2.md)）。
+现行规范名一律是 `OMB_*`（例如 ComfyUI 地址 = `OMB_COMFY_SERVER_URL`）。
+把旧变量改名为对应的 `OMB_*`，或直接删掉；
+`config report --include-unknown-env` 会把所有残留旧变量列出来，清完即无。
 
 ### 症状：改了权重名，ComfyUI 说找不到
 
@@ -219,13 +226,6 @@ for k in ("diffusion_models","unet","loras","vae","text_encoders","clip"):
 ```
 
 **文件名带不带扩展名？** 配置里默认值带 `.safetensors`，与后端枚举一致。改了名要整段照抄。
-
-### 症状：`COMFYUI_BASE_URL` 报了废弃告警
-
-它是**为兼容而保留的废弃别名**，且 OpenMontage 从不读这个名字。改用
-`OM_BRIDGE_COMFY_SERVER_URL`（旧名 `OM_BRIDGE_COMFYUI_SERVER_URL` /
-`COMFYUI_SERVER_URL` 仍有效）。
-`config report` 会提示它，删掉即可。
 
 ### 症状：`.env` 里有 `COMFYUI_MINIMAX_H3_WORKFLOW_PATH` 之类的变量
 

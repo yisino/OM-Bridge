@@ -5,13 +5,25 @@
 
 ## [Unreleased]
 
-### 变更
+### 变更（破坏性）
 
-- **`backend.comfyui.server_url` 的规范环境变量名改为 `OM_BRIDGE_COMFY_SERVER_URL`**
-  （原名 `OM_BRIDGE_COMFYUI_SERVER_URL`）。旧名不删除，降级为已废弃别名，
-  与更早的 `COMFYUI_SERVER_URL` 一起继续等价读取 —— 存量配置零改动。
-  同步更新了配置模板（逐项说明大幅扩充）、README 快速开始（改为直接使用配置模板）、
-  全部文档与部署脚本的提示信息（[ADR-0004](docs/design/0004-config-backward-compatible-aliases.md) 补记）。
+- **配置命名 v2：统一 `OMB_` 短前缀，兼容别名层整体移除**
+  （[ADR-0009](docs/design/0009-config-naming-v2.md)，取代 [ADR-0004](docs/design/0004-config-backward-compatible-aliases.md)）：
+  * 全部规范环境变量名从 `OM_BRIDGE_*` 改为 `OMB_*`（如 `OM_BRIDGE_TIMEOUT` → `OMB_TIMEOUT`、
+    `OM_BRIDGE_COMFY_SERVER_URL` → `OMB_COMFY_SERVER_URL`、
+    `OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH` → `OMB_MINIMAX_H3_WIDTH`）。
+    ComfyUI 后端段进一步去掉冗余的 "UI"（`OMB_COMFY_API_TOKEN` 等）。
+    理由：环境变量是进程级公共地盘，裸名（`TIMEOUT`/`STRICT`/`ENV_FILE` 等）在
+    MCP 宿主注入的环境与 CI 里极易撞名；`OMB_` 短前缀保留命名空间且可读性更好。
+  * **旧名不再被读取**：`OM_BRIDGE_*` 全部旧前缀、`COMFYUI_*` 别名组、以及
+    `backend.comfyui.base_url`（原 `COMFYUI_BASE_URL`，从未被 OpenMontage 读取的废弃项）
+    一并删除，登记表与配置模板零残留。存量环境里的遗留旧变量会被
+    `config report --include-unknown-env` 点名，便于一次性清理。
+  * **升级须知**：部署机配置文件需把变量名改为 `OMB_*`（`deploy/install.sh`
+    生成的模板已是新名）；否则对应项会静默回落内置默认值（如 server_url → localhost）。
+- **`Setting` 新增 `choices` 字段**：枚举型配置（`default_backend` / `default_solution` /
+  `log_level` / `ref_image_size`）在 `config list` / `explain` / 配置模板中完整列出合法值；
+  越界取值**告警不报错**（第三方插件可扩展，登记表不是封闭集合）。
 
 ### 新增
 
@@ -23,12 +35,19 @@
   无模式、无资产需求，覆盖与 H3 互补的注册分支；`simulate_failure` 参数提供
   结构化失败路径。Session / CLI 全链路均有测试（`tests/test_mock_backend.py`、
   `tests/test_cli.py::test_mock_backend_end_to_end_via_cli`）。
+- **开发环境说明**：`requirements.txt`（运行时零依赖声明 + 可选 `websocket-client`）、
+  `requirements-dev.txt`（pytest / ruff）、`docs/development.md`
+  （`.venv` 创建与启用的 Windows / Linux 双平台步骤）。
+
+### 历史（同在 Unreleased 期间的上一轮配置改名）
+
+- `backend.comfyui.server_url` 的规范名曾由 `OM_BRIDGE_COMFYUI_SERVER_URL`
+  改为 `OM_BRIDGE_COMFY_SERVER_URL`（当时旧名降级为别名继续生效）。
+  该改名现已被上方的 `OMB_` 统一改名**覆盖**，无需单独迁移。
 
 ### 计划中
 
 - `tests/` 覆盖率的补齐（当前重点是构图回归与配置分层）
-- 旧变量名的**弃用告警**（需等上游 OpenMontage 完成迁移，见
-  [ADR-0004](docs/design/0004-config-backward-compatible-aliases.md)）
 
 ## [0.1.0] — 2026-09-12
 
@@ -99,7 +118,6 @@
   见 [ADR-0006](docs/design/0006-materialize-graph-on-demand.md)。
 - 配置采用**规范名 + 兼容旧名**：`OM_BRIDGE_*` 为规范名，旧 `COMFYUI_*` 作为同层别名保留，
   存量部署无需改动。见 [ADR-0004](docs/design/0004-config-backward-compatible-aliases.md)。
-- `COMFYUI_BASE_URL` 标记为**废弃别名**（上游从不读取该名字），使用时会给出告警。
 - 参数默认值的优先级为**配置 > 代码内置默认值**：换权重/步数不再需要改代码。
 
 ### 修复
@@ -126,7 +144,7 @@
   `Issue(severity=...)` 字符串。"结构化错误"的承诺在不报错的情况下失效，
   调用方按 `code` 分流的逻辑全部失灵。修复后 `issues` 是字典列表，
   并新增 `tests/test_errors.py` 把异常契约（退出码、`as_dict` 形状、超时可恢复标记）整体钉住。
-- **两个 no-op 配置项**：`OM_BRIDGE_STRICT`（登记了"告警也视为失败"却无人读取）
+- **两个 no-op 配置项**：`OMB_STRICT`（登记了"告警也视为失败"却无人读取）
   与 `backend.<name>.poll_interval`（实际轮询只读全局值）。分别落实为
   `Session.blocking()`（`validate` 报告与 `generate` 放行共用同一条判定）与
   按后端覆盖轮询间隔。顺带修掉实现时的一个坑：登记过的键永远有值，

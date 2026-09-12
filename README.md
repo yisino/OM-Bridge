@@ -29,7 +29,7 @@ OM-Bridge 是一个 AI 生成能力的**桥接层**：它把「算力从哪来�
 |---|---|
 | 换个模型就要改客户端代码 | 模型是独立的 `Solution`，**新增目录即可**，不改核心 |
 | GPU 主机装不上 pip 包 | **运行时零第三方依赖**（纯标准库）；安装只需写两个启动脚本 |
-| 上层 `.env` 里已写死变量名 | 配置**规范名 + 兼容旧名**，存量部署零改动 |
+| 上层环境变量容易撞名 | 配置统一 **`OMB_` 短前缀命名空间**，MCP 宿主注入环境变量也安全（见 [ADR-0009](docs/design/0009-config-naming-v2.md)） |
 | 自定义节点的模型被判"不可用"，Agent 转投收费云服务 | 可用性由**实现声明**，逐模式报告缺什么（见 [ADR-0008](docs/design/0008-avoid-hardcoded-readiness.md)） |
 | 仓库里的工作流 JSON 与代码脱节 | 计算图**现场物化**，不预存（见 [ADR-0006](docs/design/0006-materialize-graph-on-demand.md)） |
 | MCP 服务偶发"JSON 解析失败" | 日志**只走 stderr**，stdout 恒为纯净协议流（见 [ADR-0007](docs/design/0007-logs-to-stderr-only.md)） |
@@ -45,8 +45,8 @@ export PATH="$HOME/.local/bin:$PATH"
 # 2) 配置：从模板拷贝一份，按注释逐项过一遍
 #    （默认值即推荐值，通常只需改地址一行；逐项说明都在模板注释里）
 cp config/om-bridge.env.example om-bridge.env
-$EDITOR om-bridge.env                      # 改 OM_BRIDGE_COMFY_SERVER_URL=...
-export OM_BRIDGE_ENV_FILE=$PWD/om-bridge.env
+$EDITOR om-bridge.env                      # 改 OMB_COMFY_SERVER_URL=...
+export OMB_ENV_FILE=$PWD/om-bridge.env
 
 # 3) 体检
 om-bridge doctor
@@ -79,7 +79,7 @@ om-bridge probe --json | jq .readiness
 # ── Agent / 框架：MCP over stdio
 #   在框架的 MCP 配置里加：
 #   {"mcpServers": {"om-bridge": {"command": "om-bridge-mcp",
-#     "env": {"OM_BRIDGE_COMFY_SERVER_URL": "http://192.168.3.3:8188",
+#     "env": {"OMB_COMFY_SERVER_URL": "http://192.168.3.3:8188",
 #             "NO_PROXY": "192.168.3.3,127.0.0.1,localhost"}}}}
 
 # ── Python 程序：SDK
@@ -156,6 +156,7 @@ OM-Bridge/
 | 部署到服务器 | [docs/deployment.md](docs/deployment.md) |
 | 新增后端 / 新增模型 | [docs/adding-a-backend.md](docs/adding-a-backend.md) |
 | 出问题 | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| 搭开发环境（.venv / 依赖） | [docs/development.md](docs/development.md) |
 | H3 参数细节 | [docs/solutions/minimax-h3.md](docs/solutions/minimax-h3.md) |
 
 ## 开发

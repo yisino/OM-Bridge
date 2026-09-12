@@ -83,15 +83,14 @@ GPU 主机经常装不上 pip 包，而"装不上依赖"不该成为"用不了"�
 
 ```
 1. 构造参数 / CLI 显式选项      （调用方说了算）
-2. 进程环境变量  OM_BRIDGE_*    （部署时说了算）
-3. 进程环境变量  旧名 alias      （兼容存量：COMFYUI_*）
-4. .env 文件     OM_BRIDGE_*
-5. .env 文件     旧名 alias
-6. 内置默认值
+2. 进程环境变量  OMB_*          （部署时说了算）
+3. .env 文件     OMB_*
+4. 内置默认值
 ```
 
-⚠ **旧名 alias 与规范名在同一层**，不是"alias 更低"。原因：alias 存在的理由是"存量部署在用它"，
-如果让旧名盖过同文件里的新名，就没法用新名纠正旧值了。
+⚠ 环境变量一律带 `OMB_` 短前缀（[ADR-0009](design/0009-config-naming-v2.md)）。
+旧版 `OM_BRIDGE_*` 与 `COMFYUI_*` 名字已不再被读取；残留的旧变量会被
+`om-bridge config report --include-unknown-env` 点名，清掉即可。
 
 想确认某个值**到底从哪来**：
 
@@ -103,12 +102,12 @@ om-bridge config explain backend.comfyui.server_url
 
 按顺序探测（找到第一个就用）：
 
-1. `--env-file <路径>` / `OM_BRIDGE_ENV_FILE`
+1. `--env-file <路径>` / `OMB_ENV_FILE`
 2. `<workspace>/.env`
 3. `<workspace>/config/om-bridge.env`
 4. 安装前缀下的 `share/om-bridge/om-bridge.env`
 
-`<workspace>` 默认是当前目录，可用 `--workspace` 或 `OM_BRIDGE_WORKSPACE` 指定。
+`<workspace>` 默认是当前目录，可用 `--workspace` 或 `OMB_WORKSPACE` 指定。
 
 ### 3.3 配置文件模板与 profile
 
@@ -125,7 +124,7 @@ cp config/om-bridge.env.example config/om-bridge.env
 ### 3.4 最小可用配置
 
 ```bash
-OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
+OMB_COMFY_SERVER_URL=http://192.168.3.3:8188
 NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
@@ -148,7 +147,7 @@ NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
 ```bash
-export OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
+export OMB_COMFY_SERVER_URL=http://192.168.3.3:8188
 export NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
@@ -168,8 +167,8 @@ export NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ### 4.3 多后端（不同能力指向不同机器）
 
 ```bash
-OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
-OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL=http://192.168.3.9:8188
+OMB_COMFY_SERVER_URL=http://192.168.3.3:8188
+OMB_COMFY_VIDEO_SERVER_URL=http://192.168.3.9:8188
 ```
 
 留空的能力专用地址会**继承** `server_url`。单机部署应全部留空。
@@ -257,7 +256,7 @@ diff -u $HOME/.local/share/om-bridge/om-bridge.env config/om-bridge.env.example
 |---|---|
 | **配置文件权限** | 含 token 的 `.env` 用 `chmod 600`。`verify.sh` 会检查并告警 |
 | **别进 git** | `.gitignore` 已挡 `*.env` 与 `.env.bak.*`；提交时用 `git add <具体文件>`，**别用 `git add -A`** |
-| **认证** | 后端在鉴权代理之后时用 `OM_BRIDGE_COMFYUI_API_TOKEN`（Bearer）或 `auth_user`+`auth_password`（Basic）。**原生 ComfyUI 不需要认证** |
+| **认证** | 后端在鉴权代理之后时用 `OMB_COMFY_API_TOKEN`（Bearer）或 `auth_user`+`auth_password`（Basic）。**原生 ComfyUI 不需要认证** |
 | **对外暴露** | ComfyUI 的 API 没有鉴权，**不要**直接把 8188 暴露到公网。走 SSH 转发或只监听 LAN |
 | **共享机器** | 若同机有其它用户，确认安装前缀与配置文件对其不可读（`path` 模式默认装到 `~/.local`，已是私有） |
 | **密钥输出** | `config list`/`report` 对 `secret=True` 的项做**掩码**输出。别自己写脚本去 dump 原始 env |

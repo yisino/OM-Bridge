@@ -1,0 +1,16 @@
+# 运行时依赖（requirements.txt）
+#
+# OM-Bridge 核心运行时**零第三方依赖**（纯 Python 标准库），
+# 这是一条硬性设计约束，不是疏漏 —— 见 pyproject.toml 的 dependencies = []
+# 与 docs/design/0002-zero-runtime-dependencies.md：
+#   * 传输层用标准库 urllib（不用 requests）
+#   * .env 解析自己实现（不用 python-dotenv）
+#   * MCP 握手自己实现（不用 mcp SDK）
+# 目标机常常是生产 GPU 主机 / 内网服务器，没有 pip 镜像，也不允许污染环境。
+#
+# 因此本文件是**空的**：`pip install -r requirements.txt` 合法且无事发生。
+#
+# 可选依赖（装了增强，不装自动降级，功能等价）：
+#   websocket-client>=1.6     # ComfyUI 实时进度推送；不装则退回 /history 轮询
+#
+# 开发依赖（测试 / 静态检查）请用 requirements-dev.txt。

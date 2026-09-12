@@ -83,7 +83,7 @@ om-bridge generate -s minimax_h3.ref2v --help     # 只显示该模式相关的�
 | 音频 VAE | `minimax_h3_audio_vae_fp32.safetensors` | 同 |
 | 节点 | `MiniMaxH3ImageToVideo` | `MiniMaxH3ReferenceToVideo` |
 
-权重文件名可用配置覆盖（`OM_BRIDGE_SOLUTION_MINIMAX_H3_UNET` 等），
+权重文件名可用配置覆盖（`OMB_MINIMAX_H3_UNET` 等），
 **配置的值优先于代码内置默认**。
 
 **"t2v 能跑但 ref2v 报错"** 最常见的原因就是缺 `ref2va` 权重 —— `om-bridge probe` 会逐模式告诉你。

@@ -1,0 +1,10 @@
+# 开发依赖（requirements-dev.txt）
+#
+# 运行时零依赖（见 requirements.txt）；本文件只服务于此仓库的开发流程：
+#   跑测试（pytest）与静态检查（ruff）。
+# 与 pyproject.toml 的 [project.optional-dependencies].dev 保持一致 ——
+# 两边都可以装，内容相同；列在这里是为了让
+# `pip install -r requirements-dev.txt` 这条习惯性命令直接可用。
+
+pytest>=7.4
+ruff>=0.5

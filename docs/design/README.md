@@ -40,11 +40,12 @@ Proposed → Accepted → (Deprecated | Superseded by ADR-XXXX)
 | [0001](0001-two-layer-backend-solution.md) | 双层扩展模型（Backend × Solution） | Accepted | 把"在哪跑"和"用什么模型"彻底分开 |
 | [0002](0002-zero-runtime-dependencies.md) | 运行时零第三方依赖 | Accepted | 不用 requests/python-dotenv，换"GPU 主机免 pip" |
 | [0003](0003-registry-autodiscovery.md) | 注册表自动发现，无中心清单 | Accepted | 新增实现不修改任何既有文件 |
-| [0004](0004-config-backward-compatible-aliases.md) | 配置规范名 + 兼容旧变量名 | Accepted | 上层存量 `.env` 不改也能跑 |
+| [0004](0004-config-backward-compatible-aliases.md) | 配置规范名 + 兼容旧变量名 | Superseded by ADR-0009 | 上层存量 `.env` 不改也能跑 |
 | [0005](0005-three-delivery-surfaces.md) | 三个交付面共享一个 Session | Accepted | CLI / MCP / SDK 行为一致 |
 | [0006](0006-materialize-graph-on-demand.md) | 计算图现场物化，不预存文件 | Accepted | 消灭"仓库 JSON 与代码脱节" |
 | [0007](0007-logs-to-stderr-only.md) | 日志只走 stderr | Accepted | 保住 MCP 的 stdio 协议 |
 | [0008](0008-avoid-hardcoded-readiness.md) | 禁止硬编码的可用性判断 | Accepted | 错误的"不可用"会把人推向收费服务 |
+| [0009](0009-config-naming-v2.md) | 配置命名 v2：OMB_ 短前缀 + 别名移除 | Accepted | 命名空间防撞名，模板只讲一个名字 |
 
 ## 模板
 

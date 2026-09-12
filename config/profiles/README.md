@@ -13,7 +13,7 @@ OM-Bridge 的配置查找遵循**取第一个存在的文件、不合并多个**
 
 ```bash
 # 方式一：临时指向（推荐用于对比与排障）
-OM_BRIDGE_ENV_FILE=config/profiles/through-tunnel.env om-bridge doctor
+OMB_ENV_FILE=config/profiles/through-tunnel.env om-bridge doctor
 
 # 方式二：把内容拷进工作区根的 .env（长期使用）
 cp config/profiles/through-tunnel.env .env
@@ -25,7 +25,7 @@ cp config/profiles/through-tunnel.env .env
 排查时必须把每一层的覆盖关系在脑子里跑一遍。
 用**一个**文件 + 明确的来源标注（`om-bridge config report` 会逐项标出
 `override` / `env:VAR` / `file:VAR` / `default`），比多层合并好排查得多。
-真需要组合时，用环境变量覆盖那一层：`OM_BRIDGE_COMFY_SERVER_URL=... om-bridge ...`
+真需要组合时，用环境变量覆盖那一层：`OMB_COMFY_SERVER_URL=... om-bridge ...`
 
 ## 两个档的差别
 

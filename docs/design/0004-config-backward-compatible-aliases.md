@@ -2,6 +2,9 @@
 
 ## Status
 
+**Superseded by [ADR-0009](0009-config-naming-v2.md)**（别名层已整体移除，规范名改为 `OMB_` 短前缀）。
+以下为历史决策原文，保留以记录当初的取舍。
+
 Accepted（2026-09-12）
 
 ## Context
@@ -25,13 +28,13 @@ OpenMontage 的托管块"，就是一次"升级即故障"。
 
 采用**规范名 + 同名别名**的双名制：
 
-- 规范名：`OM_BRIDGE_<命名空间>_<键>`，例如 `OM_BRIDGE_COMFY_SERVER_URL`、
-  `OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH`。程序内用**点号键**引用（`backend.comfyui.server_url`）。
+- 规范名：`OM_BRIDGE_<命名空间>_<键>`，例如 `OMB_COMFY_SERVER_URL`、
+  `OMB_MINIMAX_H3_WIDTH`。程序内用**点号键**引用（`backend.comfyui.server_url`）。
 - 旧名作为 `aliases` 登记在同一 `Setting` 上：`COMFYUI_SERVER_URL`、
   `COMFYUI_MINIMAX_H3_WIDTH` 等。
 
 > **2026-09-12 补记（改名事件）**：`server_url` 的规范名由
-> `OM_BRIDGE_COMFYUI_SERVER_URL` 改为 `OM_BRIDGE_COMFY_SERVER_URL`（用户要求去掉
+> `OMB_COMFY_SERVER_URL` 改为 `OMB_COMFY_SERVER_URL`（用户要求去掉
 > 名字里冗余的 "UI"，同时保留 `OM_BRIDGE_` 前缀以维持命名空间一致）。
 > 旧规范名并未删除，而是**降级为别名**并标记 `deprecated_alias=True` ——
 > 这正是本 ADR 所定机制的一次自我应用：改名本身也做到了"存量零破坏"。
@@ -42,7 +45,6 @@ OpenMontage 的托管块"，就是一次"升级即故障"。
 构造参数 > 进程环境变量(规范名|旧名) > .env(规范名|旧名) > 内置默认
 ```
 
-并额外把 `COMFYUI_BASE_URL` 标记为 `deprecated_alias=True`（优先级最低 + 给出告警），
 因为上游从来不读这个名字，留着只会误导。
 
 `om-bridge config explain <键>` 会显示最终取值**来自哪个文件/哪一层**；
