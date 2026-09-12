@@ -1,0 +1,243 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load H3 diffusion model"
+    },
+    "inputs": {
+      "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load Qwen3-VL text encoder (minimax)"
+    },
+    "inputs": {
+      "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "type": "minimax",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load H3 video VAE"
+    },
+    "inputs": {
+      "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+    }
+  },
+  "4": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load H3 audio VAE"
+    },
+    "inputs": {
+      "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+    }
+  },
+  "5": {
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "Turbo LoRA (8-step)"
+    },
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "first_frame"
+    },
+    "inputs": {
+      "image": "丹华_角色模型.png"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "last_frame"
+    },
+    "inputs": {
+      "image": "赤焰_角色模型.png"
+    }
+  },
+  "8": {
+    "class_type": "MiniMaxH3ImageToVideo",
+    "_meta": {
+      "title": "MiniMax H3 conditioning + latent"
+    },
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "prompt": "Cinematic wide shot, slow dolly-in. A lighthouse on a basalt cliff at dusk, heavy swell breaking below, gulls crossing frame left to right, warm interior light spilling from the lantern room, volumetric mist, natural film grain.\n\nAudio: deep ocean rumble, wind buffeting, distant gull calls, a low sustained string note swelling under the scene.\n\nNo text, subtitles, logos or watermarks of any kind.",
+      "width": 864,
+      "height": 480,
+      "length": 124,
+      "vae": [
+        "3",
+        0
+      ],
+      "first_frame": [
+        "6",
+        0
+      ],
+      "last_frame": [
+        "7",
+        0
+      ]
+    }
+  },
+  "9": {
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "Noise"
+    },
+    "inputs": {
+      "noise_seed": 0
+    }
+  },
+  "10": {
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "Sampler"
+    },
+    "inputs": {
+      "sampler_name": "res_multistep"
+    }
+  },
+  "11": {
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "Scheduler"
+    },
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "scheduler": "simple",
+      "steps": 8,
+      "denoise": 1.0
+    }
+  },
+  "12": {
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "Guider"
+    },
+    "inputs": {
+      "model": [
+        "5",
+        0
+      ],
+      "conditioning": [
+        "8",
+        0
+      ]
+    }
+  },
+  "13": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Sample"
+    },
+    "inputs": {
+      "noise": [
+        "9",
+        0
+      ],
+      "guider": [
+        "12",
+        0
+      ],
+      "sampler": [
+        "10",
+        0
+      ],
+      "sigmas": [
+        "11",
+        0
+      ],
+      "latent_image": [
+        "8",
+        1
+      ]
+    }
+  },
+  "14": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "Decode video"
+    },
+    "inputs": {
+      "samples": [
+        "13",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    }
+  },
+  "15": {
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "Decode audio"
+    },
+    "inputs": {
+      "samples": [
+        "13",
+        0
+      ],
+      "vae": [
+        "4",
+        0
+      ]
+    }
+  },
+  "16": {
+    "class_type": "CreateVideo",
+    "_meta": {
+      "title": "Mux video + audio"
+    },
+    "inputs": {
+      "images": [
+        "14",
+        0
+      ],
+      "audio": [
+        "15",
+        0
+      ],
+      "fps": 24,
+      "bit_depth": 8
+    }
+  },
+  "17": {
+    "class_type": "SaveVideo",
+    "_meta": {
+      "title": "Save video"
+    },
+    "inputs": {
+      "video": [
+        "16",
+        0
+      ],
+      "filename_prefix": "video/MiniMax_H3",
+      "format": "auto",
+      "codec": "auto"
+    }
+  }
+}
