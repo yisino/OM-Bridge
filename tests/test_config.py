@@ -28,7 +28,7 @@ def test_parse_env_file_basics(tmp_path) -> None:
             [
                 "# 注释行",
                 "",
-                "OM_BRIDGE_COMFYUI_SERVER_URL=http://192.168.3.3:8188",
+                "OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188",
                 'export OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH="608"',
                 "NO_PROXY=192.168.3.3,127.0.0.1,localhost",
                 "  空格两侧被裁掉  =  值  ",
@@ -37,7 +37,7 @@ def test_parse_env_file_basics(tmp_path) -> None:
         encoding="utf-8",
     )
     values = parse_env_file(path)
-    assert values["OM_BRIDGE_COMFYUI_SERVER_URL"] == "http://192.168.3.3:8188"
+    assert values["OM_BRIDGE_COMFY_SERVER_URL"] == "http://192.168.3.3:8188"
     assert values["OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH"] == "608"   # export + 引号
     assert values["NO_PROXY"].count(",") == 2
     assert values["空格两侧被裁掉"] == "值"
@@ -70,8 +70,8 @@ def test_parse_env_file_missing_file_is_empty(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 def test_override_beats_environment() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://file:8188"},
-        environ={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://env:8188"},
+        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
+        environ={"OM_BRIDGE_COMFY_SERVER_URL": "http://env:8188"},
         overrides={"backend.comfyui.server_url": "http://override:8188"},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://override:8188"
@@ -80,15 +80,15 @@ def test_override_beats_environment() -> None:
 
 def test_environment_beats_file() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://file:8188"},
-        environ={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://env:8188"},
+        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
+        environ={"OM_BRIDGE_COMFY_SERVER_URL": "http://env:8188"},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://env:8188"
 
 
 def test_file_used_when_no_environment() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://file:8188"},
+        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
         environ={},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://file:8188"
@@ -116,12 +116,24 @@ def test_legacy_alias_works_from_file_too() -> None:
 
 
 def test_canonical_name_beats_alias_in_same_layer() -> None:
-    """规范名与旧名同层时，规范名优先 —— 否则用户无法用新名纠正旧值。"""
+    """规范名与旧名同层时，规范名优先 —— 否则用户无法用新名纠正旧值。
+
+    别名之间的顺序也有语义（排在前面的优先）：``OM_BRIDGE_COMFYUI_SERVER_URL``
+    是上一代规范名，比 ``COMFYUI_SERVER_URL`` 更"接近正主"。
+    """
     cfg = Config(environ={
-        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://canonical:8188",
+        "OM_BRIDGE_COMFY_SERVER_URL": "http://canonical:8188",
+        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://old-canonical:8188",
         "COMFYUI_SERVER_URL": "http://legacy:8188",
     })
     assert cfg.get("backend.comfyui.server_url") == "http://canonical:8188"
+
+    cfg = Config(environ={
+        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://old-canonical:8188",
+        "COMFYUI_SERVER_URL": "http://legacy:8188",
+    })
+    assert cfg.get("backend.comfyui.server_url") == "http://old-canonical:8188"
+    assert cfg.source("backend.comfyui.server_url") == "env:OM_BRIDGE_COMFYUI_SERVER_URL"
 
 
 def test_every_canonical_setting_has_env_name_and_description() -> None:
@@ -153,9 +165,25 @@ def test_deprecated_base_url_alias_is_lowest_priority() -> None:
     """`COMFYUI_BASE_URL` 是废弃别名（上游从不读它），不该压过 server_url。"""
     cfg = Config(environ={
         "COMFYUI_BASE_URL": "http://deprecated:8188",
-        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://canonical:8188",
+        "OM_BRIDGE_COMFY_SERVER_URL": "http://canonical:8188",
     })
     assert cfg.get("backend.comfyui.server_url") == "http://canonical:8188"
+
+
+def test_renamed_server_url_old_names_still_work() -> None:
+    """`OM_BRIDGE_COMFYUI_SERVER_URL` 从规范名降级为别名后，存量配置不能坏。
+
+    现网 SER 的配置文件与文档里写的都是这个名字 —— 改名若破坏它们，
+    等于把"升级零成本"变成了"升级先改配置"。
+    """
+    cfg = Config(environ={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://ser:8188"})
+    assert cfg.get("backend.comfyui.server_url") == "http://ser:8188"
+
+    setting = next(s for s in COMFYUI_SETTINGS if s.key == "backend.comfyui.server_url")
+    assert setting.env == "OM_BRIDGE_COMFY_SERVER_URL"
+    assert "OM_BRIDGE_COMFYUI_SERVER_URL" in setting.aliases
+    assert "COMFYUI_SERVER_URL" in setting.aliases
+    assert setting.deprecated_alias, "降级后的旧名应被标记为已废弃"
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +193,7 @@ def test_type_coercion_from_strings() -> None:
     """环境变量永远是字符串，配置层负责还原成登记表里声明的类型。
 
     变量名不是"."替换成"_"那么简单：``backend.comfyui.server_url`` 对应
-    ``OM_BRIDGE_COMFYUI_SERVER_URL``（省略了 backend 段）。**以登记表的
+    ``OM_BRIDGE_COMFY_SERVER_URL``（省略了 backend 段）。**以登记表的
     ``env`` 字段为准**，别凭键名推测 —— 写错名字不会报错，只会静默用默认值。
     """
     cfg = Config(environ={
@@ -228,16 +256,27 @@ def test_explain_tells_where_value_came_from() -> None:
     """来源标签必须**带变量名**，不能只写个 ``file``。
 
     因为一个配置项有规范名 + 若干旧名别名。只说"来自文件"不足以回答
-    "那我的 ``OM_BRIDGE_COMFYUI_SERVER_URL`` 到底有没有被读到" ——
+    "那我的 ``OM_BRIDGE_COMFY_SERVER_URL`` 到底有没有被读到" ——
     用户在文件里同时留着新旧两个名字时，正是最需要看这一栏的时候。
     """
-    cfg = Config(file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://file:8188"},
+    cfg = Config(file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
                  environ={}, env_file="/tmp/x.env")
     info = cfg.explain("backend.comfyui.server_url")
     assert info["value"] == "http://file:8188"
-    assert info["source"] == "file:OM_BRIDGE_COMFYUI_SERVER_URL"
-    assert info["env"] == "OM_BRIDGE_COMFYUI_SERVER_URL"
+    assert info["source"] == "file:OM_BRIDGE_COMFY_SERVER_URL"
+    assert info["env"] == "OM_BRIDGE_COMFY_SERVER_URL"
     assert "COMFYUI_SERVER_URL" in info["aliases"]
+    assert "OM_BRIDGE_COMFYUI_SERVER_URL" in info["aliases"]
+
+
+def test_explain_reports_deprecated_alias_source_verbatim() -> None:
+    """旧规范名（现别名）生效时，来源要写清是**旧名**给的 ——
+    提示用户"这个文件可以顺手迁移到新名了"。"""
+    cfg = Config(file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://old:8188"},
+                 environ={}, env_file="/tmp/x.env")
+    info = cfg.explain("backend.comfyui.server_url")
+    assert info["value"] == "http://old:8188"
+    assert info["source"] == "file:OM_BRIDGE_COMFYUI_SERVER_URL"
 
 
 def test_explain_reports_which_alias_was_honoured() -> None:

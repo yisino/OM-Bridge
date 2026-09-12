@@ -921,8 +921,8 @@ def _judge(facts: dict[str, Any]) -> tuple[str, list[str]]:
     elif not probe.get("reachable"):
         fatal = True
         advice.append("后端不可达 —— 先确认服务在跑："
-                      f"`curl {probe.get('backend') and ''}` 或检查 OM_BRIDGE_COMFYUI_SERVER_URL / "
-                      "旧名 COMFYUI_SERVER_URL 是否指向正确地址")
+                      f"`curl {probe.get('backend') and ''}` 或检查 OM_BRIDGE_COMFY_SERVER_URL / "
+                      "旧名 OM_BRIDGE_COMFYUI_SERVER_URL 是否指向正确地址")
         advice.append("本机验通最快的方式：`om-bridge probe --json`，看 errors 字段里的具体原因")
     else:
         readiness = probe.get("readiness") or {}

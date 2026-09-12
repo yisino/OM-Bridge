@@ -137,7 +137,7 @@ else
   cp "${PROJECT_ROOT}/config/om-bridge.env.example" "$ENV_TARGET"
   chmod 600 "$ENV_TARGET"
   ok "已生成配置：${ENV_TARGET}（权限 600）"
-  warn "请编辑它，至少把 OM_BRIDGE_COMFYUI_SERVER_URL 与 OM_BRIDGE_WORKSPACE 改成实际值"
+  warn "请编辑它，至少把 OM_BRIDGE_COMFY_SERVER_URL 与 OM_BRIDGE_WORKSPACE 改成实际值"
 fi
 
 echo

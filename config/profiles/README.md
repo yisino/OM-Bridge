@@ -25,7 +25,7 @@ cp config/profiles/through-tunnel.env .env
 排查时必须把每一层的覆盖关系在脑子里跑一遍。
 用**一个**文件 + 明确的来源标注（`om-bridge config report` 会逐项标出
 `override` / `env:VAR` / `file:VAR` / `default`），比多层合并好排查得多。
-真需要组合时，用环境变量覆盖那一层：`OM_BRIDGE_COMFYUI_SERVER_URL=... om-bridge ...`
+真需要组合时，用环境变量覆盖那一层：`OM_BRIDGE_COMFY_SERVER_URL=... om-bridge ...`
 
 ## 两个档的差别
 
@@ -37,7 +37,7 @@ cp config/profiles/through-tunnel.env .env
 `through-tunnel.env` 对应的隧道命令（在 **ComfyUI 所在主机**上执行，保持连接）：
 
 ```bash
-ssh -N -R 8188:127.0.0.1:8188 vincent@<服务器地址>
+ssh -N -R 8188:127.0.0.1:8188 <user>@<服务器地址>
 ```
 
 **为什么优先用隧道而不是"暴露到公网 + 加认证头"**：

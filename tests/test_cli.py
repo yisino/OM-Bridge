@@ -28,7 +28,7 @@ def env_file(tmp_path_factory) -> Path:
     path = tmp_path_factory.mktemp("om-bridge-test") / "test.env"
     path.write_text(
         "\n".join([
-            f"OM_BRIDGE_COMFYUI_SERVER_URL={UNREACHABLE}",
+            f"OM_BRIDGE_COMFY_SERVER_URL={UNREACHABLE}",
             "OM_BRIDGE_CONNECT_TIMEOUT=1",
             "OM_BRIDGE_COMFYUI_CONNECT_TIMEOUT=1",
             "OM_BRIDGE_COMFYUI_OBJECT_INFO_TIMEOUT=1",

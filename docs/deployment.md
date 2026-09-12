@@ -125,7 +125,7 @@ cp config/om-bridge.env.example config/om-bridge.env
 ### 3.4 最小可用配置
 
 ```bash
-OM_BRIDGE_COMFYUI_SERVER_URL=http://192.168.3.3:8188
+OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
 NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
@@ -148,7 +148,7 @@ NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
 ```bash
-export OM_BRIDGE_COMFYUI_SERVER_URL=http://192.168.3.3:8188
+export OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
 export NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ```
 
@@ -168,7 +168,7 @@ export NO_PROXY=192.168.3.3,127.0.0.1,localhost
 ### 4.3 多后端（不同能力指向不同机器）
 
 ```bash
-OM_BRIDGE_COMFYUI_SERVER_URL=http://192.168.3.3:8188
+OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188
 OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL=http://192.168.3.9:8188
 ```
 

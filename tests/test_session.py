@@ -14,7 +14,7 @@ from om_bridge.core.session import Session
 
 def make_session(**environ: str) -> Session:
     base = {
-        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://127.0.0.1:1",  # 不可达但**不会立刻连接**
+        "OM_BRIDGE_COMFY_SERVER_URL": "http://127.0.0.1:1",  # 不可达但**不会立刻连接**
         "OM_BRIDGE_CONNECT_TIMEOUT": "0.1",
     }
     base.update(environ)

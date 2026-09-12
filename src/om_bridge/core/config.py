@@ -111,8 +111,10 @@ GLOBAL_SETTINGS: list[Setting] = [
 # --- ComfyUI 后端 ----------------------------------------------------------
 # 别名列即旧 comfyui.env 里的变量名。规范名与旧名同时存在于同一优先级层。
 COMFYUI_SETTINGS: list[Setting] = [
-    _s("backend.comfyui.server_url", "OM_BRIDGE_COMFYUI_SERVER_URL", "http://localhost:8188", "string",
-       "ComfyUI 基地址。所有工具的公共地址。", ("COMFYUI_SERVER_URL",)),
+    _s("backend.comfyui.server_url", "OM_BRIDGE_COMFY_SERVER_URL", "http://localhost:8188", "string",
+       "ComfyUI 基地址。所有工具的公共地址，单机部署只需设这一个。"
+       "旧名 OM_BRIDGE_COMFYUI_SERVER_URL / COMFYUI_SERVER_URL 仍然有效（已废弃）。",
+       ("OM_BRIDGE_COMFYUI_SERVER_URL", "COMFYUI_SERVER_URL"), False, True),
     _s("backend.comfyui.video_server_url", "OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL", "", "string",
        "视频能力专用地址，留空继承 server_url（单机部署应留空）。",
        ("COMFYUI_VIDEO_SERVER_URL",)),

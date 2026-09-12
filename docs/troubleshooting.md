@@ -223,7 +223,8 @@ for k in ("diffusion_models","unet","loras","vae","text_encoders","clip"):
 ### 症状：`COMFYUI_BASE_URL` 报了废弃告警
 
 它是**为兼容而保留的废弃别名**，且 OpenMontage 从不读这个名字。改用
-`OM_BRIDGE_COMFYUI_SERVER_URL`（或旧名 `COMFYUI_SERVER_URL`）。
+`OM_BRIDGE_COMFY_SERVER_URL`（旧名 `OM_BRIDGE_COMFYUI_SERVER_URL` /
+`COMFYUI_SERVER_URL` 仍有效）。
 `config report` 会提示它，删掉即可。
 
 ### 症状：`.env` 里有 `COMFYUI_MINIMAX_H3_WORKFLOW_PATH` 之类的变量

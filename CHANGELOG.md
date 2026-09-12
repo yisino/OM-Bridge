@@ -5,6 +5,14 @@
 
 ## [Unreleased]
 
+### 变更
+
+- **`backend.comfyui.server_url` 的规范环境变量名改为 `OM_BRIDGE_COMFY_SERVER_URL`**
+  （原名 `OM_BRIDGE_COMFYUI_SERVER_URL`）。旧名不删除，降级为已废弃别名，
+  与更早的 `COMFYUI_SERVER_URL` 一起继续等价读取 —— 存量配置零改动。
+  同步更新了配置模板（逐项说明大幅扩充）、README 快速开始（改为直接使用配置模板）、
+  全部文档与部署脚本的提示信息（[ADR-0004](docs/design/0004-config-backward-compatible-aliases.md) 补记）。
+
 ### 新增
 
 - **`mock` 后端**（`backends/mock/`）：确定性、离线、零网络的参考实现。

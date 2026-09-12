@@ -365,7 +365,7 @@ MCP 工具：`om_bridge_list`、`om_bridge_describe`、`om_bridge_check`、`om_b
 
 | 键 | 环境变量（旧名） | 默认 | 说明 |
 |---|---|---|---|
-| `backend.comfyui.server_url` | `OM_BRIDGE_COMFYUI_SERVER_URL` (`COMFYUI_SERVER_URL`) | `http://localhost:8188` | 基地址 |
+| `backend.comfyui.server_url` | `OM_BRIDGE_COMFY_SERVER_URL`（旧名 `OM_BRIDGE_COMFYUI_SERVER_URL` / `COMFYUI_SERVER_URL`，已废弃但仍有效） | `http://localhost:8188` | 基地址 |
 | `backend.comfyui.video_server_url` | `OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL` (`COMFYUI_VIDEO_SERVER_URL`) | 空 → 继承 | 视频能力专用地址 |
 | `backend.comfyui.image_server_url` | `..._IMAGE_SERVER_URL` (`COMFYUI_IMAGE_SERVER_URL`) | 空 → 继承 | 图像能力专用地址 |
 | `backend.comfyui.music_server_url` | `..._MUSIC_SERVER_URL` (`COMFYUI_MUSIC_SERVER_URL`) | 空 → 继承 | 音频能力专用地址 |
@@ -383,6 +383,10 @@ MCP 工具：`om_bridge_list`、`om_bridge_describe`、`om_bridge_check`、`om_b
 > 新部署请只用 `server_url`。工具（如 `doctor` / `config report`）会对它给出告警。
 
 ### solution.minimax_h3
+
+> 表中 `..._X` 是缩写：键列 = `solution.minimax_h3.<小写x>`，
+> 环境变量列 = `OM_BRIDGE_SOLUTION_MINIMAX_H3_<X>`（旧名 `COMFYUI_MINIMAX_H3_<X>`）。
+> 全部 16 项与代码登记表逐项一致（人工核对于 2026-09-12）。
 
 | 键 | 环境变量（旧名） | 默认 | 说明 |
 |---|---|---|---|

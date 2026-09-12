@@ -42,11 +42,10 @@ OM-Bridge 是一个 AI 生成能力的**桥接层**：它把「算力从哪来�
 ./deploy/install.sh                      # → ~/.local
 export PATH="$HOME/.local/bin:$PATH"
 
-# 2) 配置（只需两行，其余都有合理默认值）
-cat > om-bridge.env <<'EOF'
-OM_BRIDGE_COMFYUI_SERVER_URL=http://192.168.3.3:8188
-NO_PROXY=192.168.3.3,127.0.0.1,localhost
-EOF
+# 2) 配置：从模板拷贝一份，按注释逐项过一遍
+#    （默认值即推荐值，通常只需改地址一行；逐项说明都在模板注释里）
+cp config/om-bridge.env.example om-bridge.env
+$EDITOR om-bridge.env                      # 改 OM_BRIDGE_COMFY_SERVER_URL=...
 export OM_BRIDGE_ENV_FILE=$PWD/om-bridge.env
 
 # 3) 体检
@@ -80,7 +79,7 @@ om-bridge probe --json | jq .readiness
 # ── Agent / 框架：MCP over stdio
 #   在框架的 MCP 配置里加：
 #   {"mcpServers": {"om-bridge": {"command": "om-bridge-mcp",
-#     "env": {"OM_BRIDGE_COMFYUI_SERVER_URL": "http://192.168.3.3:8188",
+#     "env": {"OM_BRIDGE_COMFY_SERVER_URL": "http://192.168.3.3:8188",
 #             "NO_PROXY": "192.168.3.3,127.0.0.1,localhost"}}}}
 
 # ── Python 程序：SDK

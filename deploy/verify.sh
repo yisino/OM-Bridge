@@ -270,7 +270,7 @@ PYEOF
         done <"${WORKDIR}/ready.txt"
       fi
     else
-      bad "后端不可达（检查 OM_BRIDGE_COMFYUI_SERVER_URL 与网络/隧道）"
+      bad "后端不可达（检查 OM_BRIDGE_COMFY_SERVER_URL 与网络/隧道）"
       head -c 400 "${WORKDIR}/probe.json"
       echo
     fi

@@ -25,10 +25,16 @@ OpenMontage 的托管块"，就是一次"升级即故障"。
 
 采用**规范名 + 同名别名**的双名制：
 
-- 规范名：`OM_BRIDGE_<命名空间>_<键>`，例如 `OM_BRIDGE_COMFYUI_SERVER_URL`、
+- 规范名：`OM_BRIDGE_<命名空间>_<键>`，例如 `OM_BRIDGE_COMFY_SERVER_URL`、
   `OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH`。程序内用**点号键**引用（`backend.comfyui.server_url`）。
 - 旧名作为 `aliases` 登记在同一 `Setting` 上：`COMFYUI_SERVER_URL`、
   `COMFYUI_MINIMAX_H3_WIDTH` 等。
+
+> **2026-09-12 补记（改名事件）**：`server_url` 的规范名由
+> `OM_BRIDGE_COMFYUI_SERVER_URL` 改为 `OM_BRIDGE_COMFY_SERVER_URL`（用户要求去掉
+> 名字里冗余的 "UI"，同时保留 `OM_BRIDGE_` 前缀以维持命名空间一致）。
+> 旧规范名并未删除，而是**降级为别名**并标记 `deprecated_alias=True` ——
+> 这正是本 ADR 所定机制的一次自我应用：改名本身也做到了"存量零破坏"。
 
 关键细节：**别名与规范名在同一个优先级层**，而不是"别名优先级更低"。解析顺序为
 

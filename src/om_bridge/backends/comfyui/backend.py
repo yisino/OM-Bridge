@@ -10,7 +10,9 @@
 
     构造参数 base_url
       > backend.comfyui.<capability>_server_url      （旧名 COMFYUI_VIDEO_SERVER_URL 等）
-      > backend.comfyui.server_url                   （旧名 COMFYUI_SERVER_URL）
+      > backend.comfyui.server_url                   （规范名 OM_BRIDGE_COMFY_SERVER_URL；
+                                                      旧名 OM_BRIDGE_COMFYUI_SERVER_URL /
+                                                      COMFYUI_SERVER_URL 仍有效）
       > backend.comfyui.base_url                     （旧名 COMFYUI_BASE_URL，已废弃）
       > http://localhost:8188
 
