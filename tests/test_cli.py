@@ -28,10 +28,10 @@ def env_file(tmp_path_factory) -> Path:
     path = tmp_path_factory.mktemp("om-bridge-test") / "test.env"
     path.write_text(
         "\n".join([
-            f"OM_BRIDGE_COMFY_SERVER_URL={UNREACHABLE}",
-            "OM_BRIDGE_CONNECT_TIMEOUT=1",
-            "OM_BRIDGE_COMFYUI_CONNECT_TIMEOUT=1",
-            "OM_BRIDGE_COMFYUI_OBJECT_INFO_TIMEOUT=1",
+            f"OMB_COMFY_SERVER_URL={UNREACHABLE}",
+            "OMB_CONNECT_TIMEOUT=1",
+            "OMB_COMFY_CONNECT_TIMEOUT=1",
+            "OMB_COMFY_OBJECT_INFO_TIMEOUT=1",
             "NO_PROXY=127.0.0.1,localhost",
         ]),
         encoding="utf-8",
@@ -144,7 +144,7 @@ def test_config_explain_reports_source(env_file: Path) -> None:
 
 def test_config_report_masks_secrets(tmp_path: Path) -> None:
     secret_env = tmp_path / "secret.env"
-    secret_env.write_text("OM_BRIDGE_COMFYUI_API_TOKEN=this-must-not-leak\n",
+    secret_env.write_text("OMB_COMFY_API_TOKEN=this-must-not-leak\n",
                           encoding="utf-8")
     result = run(["config", "report", "--json"], env_file=secret_env)
     assert result.returncode == 0, result.stderr
@@ -311,8 +311,8 @@ def test_config_default_beats_builtin_in_cli(tmp_path: Path) -> None:
     """配置文件里的分辨率应当压过代码内置默认 —— 部署事实优先于代码常量。"""
     cfg = tmp_path / "custom.env"
     cfg.write_text(
-        "OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH=608\n"
-        "OM_BRIDGE_SOLUTION_MINIMAX_H3_HEIGHT=352\n",
+        "OMB_MINIMAX_H3_WIDTH=608\n"
+        "OMB_MINIMAX_H3_HEIGHT=352\n",
         encoding="utf-8",
     )
     result = run(["generate", "-s", "minimax_h3", "-p", "x", "--dry-run",
@@ -449,8 +449,8 @@ def test_mock_backend_end_to_end_via_cli(tmp_path: Path) -> None:
     env = tmp_path / "mock.env"
     env.write_text(
         "\n".join([
-            "OM_BRIDGE_DEFAULT_BACKEND=mock",
-            f"OM_BRIDGE_WORKSPACE={tmp_path / 'ws'}",
+            "OMB_DEFAULT_BACKEND=mock",
+            f"OMB_WORKSPACE={tmp_path / 'ws'}",
         ]),
         encoding="utf-8",
     )

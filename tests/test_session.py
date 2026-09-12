@@ -14,8 +14,8 @@ from om_bridge.core.session import Session
 
 def make_session(**environ: str) -> Session:
     base = {
-        "OM_BRIDGE_COMFY_SERVER_URL": "http://127.0.0.1:1",  # 不可达但**不会立刻连接**
-        "OM_BRIDGE_CONNECT_TIMEOUT": "0.1",
+        "OMB_COMFY_SERVER_URL": "http://127.0.0.1:1",  # 不可达但**不会立刻连接**
+        "OMB_CONNECT_TIMEOUT": "0.1",
     }
     base.update(environ)
     return Session(Config(environ=base))
@@ -36,7 +36,7 @@ def test_blocking_ignores_warnings_by_default() -> None:
 
 
 def test_strict_mode_counts_warnings_as_blocking() -> None:
-    session = make_session(**{"OM_BRIDGE_STRICT": "true"})
+    session = make_session(**{"OMB_STRICT": "true"})
     messages = [issue.message for issue in session.blocking(SAMPLE)]
     assert messages == ["错误", "告警"], "严格模式下 WARNING 也应阻断"
 
@@ -44,17 +44,17 @@ def test_strict_mode_counts_warnings_as_blocking() -> None:
 def test_strict_mode_never_blocks_info() -> None:
     """INFO 是给 `describe` / 人看的内容提示，任何模式下都不该阻断。"""
     only_info = [Issue.info("提示")]
-    assert make_session(**{"OM_BRIDGE_STRICT": "true"}).blocking(only_info) == []
+    assert make_session(**{"OMB_STRICT": "true"}).blocking(only_info) == []
 
 
 def test_strict_values_accepted_from_strings() -> None:
     """环境变量里永远是字符串，常见写法都必须生效。"""
     messages = lambda issues: [issue.message for issue in issues]  # noqa: E731
     for raw in ("true", "1", "yes", "on"):
-        session = make_session(**{"OM_BRIDGE_STRICT": raw})
+        session = make_session(**{"OMB_STRICT": raw})
         assert messages(session.blocking(SAMPLE)) == ["错误", "告警"], raw
     for raw in ("false", "0", "", "off"):
-        session = make_session(**{"OM_BRIDGE_STRICT": raw})
+        session = make_session(**{"OMB_STRICT": raw})
         assert messages(session.blocking(SAMPLE)) == ["错误"], raw
 
 
@@ -80,15 +80,15 @@ def test_poll_interval_defaults_to_five() -> None:
 
 
 def test_poll_interval_global_override() -> None:
-    session = make_session(**{"OM_BRIDGE_POLL_INTERVAL": "9"})
+    session = make_session(**{"OMB_POLL_INTERVAL": "9"})
     assert session._poll_interval() == 9.0
 
 
 def test_poll_interval_backend_value_overrides_global() -> None:
     """覆盖的**理由**：同一进程可能配多个后端，快慢差一个量级。"""
     session = make_session(**{
-        "OM_BRIDGE_POLL_INTERVAL": "9",
-        "OM_BRIDGE_COMFYUI_POLL_INTERVAL": "2.5",
+        "OMB_POLL_INTERVAL": "9",
+        "OMB_COMFY_POLL_INTERVAL": "2.5",
     })
     assert session._poll_interval() == 2.5
 
@@ -100,18 +100,19 @@ def test_poll_interval_registered_default_never_counts_as_configured() -> None:
     结果内置默认 5 恒大于 0，全局覆盖永远不生效 —— 且不报任何错。
     "用户给没给值"必须问 ``is_default()``，不能用自带默认值去试探。
     """
-    session = make_session(**{"OM_BRIDGE_POLL_INTERVAL": "9"})
+    session = make_session(**{"OMB_POLL_INTERVAL": "9"})
     assert session._poll_interval() == 9.0, "后端键未设置时应回落到全局值"
 
     # 显式把后端键置 0：视为"未配置"，同样回落全局
     session = make_session(**{
-        "OM_BRIDGE_POLL_INTERVAL": "9",
-        "OM_BRIDGE_COMFYUI_POLL_INTERVAL": "0",
+        "OMB_POLL_INTERVAL": "9",
+        "OMB_COMFY_POLL_INTERVAL": "0",
     })
     assert session._poll_interval() == 9.0
 
 
-def test_poll_interval_backend_specific_value_from_alias() -> None:
-    """旧名 ``COMFYUI_POLL_INTERVAL`` 与规范名同效（ADR-0004）。"""
+def test_poll_interval_legacy_alias_is_not_read() -> None:
+    """旧名通道已随别名清理移除：``COMFYUI_POLL_INTERVAL`` 不再生效，
+    遗留变量只会作为 unregistered 出现在 `config report` 里（ADR-0009）。"""
     session = make_session(**{"COMFYUI_POLL_INTERVAL": "1.5"})
-    assert session._poll_interval() == 1.5
+    assert session._poll_interval() == 5.0

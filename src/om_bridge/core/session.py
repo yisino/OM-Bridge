@@ -183,7 +183,7 @@ class Session:
     def blocking(self, issues: list[Issue]) -> list[Issue]:
         """决定哪些问题会阻断执行 —— 这是**判定规则**的唯一裁决点。
 
-        默认只把 ERROR 视为阻断；``global.strict``（``OM_BRIDGE_STRICT``）
+        默认只把 ERROR 视为阻断；``global.strict``（``OMB_STRICT``）
         开启后 WARNING 也一并阻断。
 
         ⚠ 这条配置此前只登记在配置表里、从未被任何代码读取 —— 一个
@@ -369,7 +369,7 @@ class Session:
     def _poll_interval(self) -> float:
         """轮询间隔：后端专属值优先于全局值。
 
-        ``backend.<name>.poll_interval``（旧名 ``COMFYUI_POLL_INTERVAL``）此前
+        ``backend.<name>.poll_interval`` 此前
         同样只登记未读取。给它一个明确的语义 —— **按后端覆盖**：
         一个进程可能同时配置多个后端（本地 3080 出 124 帧约 100s、云端更快），
         合理的轮询间隔差着一个量级，全局单值表达不了这种差异。

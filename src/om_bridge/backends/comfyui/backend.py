@@ -4,16 +4,13 @@
 **这里没有一行代码认识 MiniMax H3** —— 模型语义全部在
 :mod:`om_bridge.backends.comfyui.solutions` 里。
 
-地址解析（与旧 ``comfyui_run.py`` 完全一致，保证迁移不改变行为）
----------------------------------------------------------------
-按能力解析，优先级从高到低::
+地址解析（优先级从高到低）
+--------------------------
+::
 
     构造参数 base_url
-      > backend.comfyui.<capability>_server_url      （旧名 COMFYUI_VIDEO_SERVER_URL 等）
-      > backend.comfyui.server_url                   （规范名 OM_BRIDGE_COMFY_SERVER_URL；
-                                                      旧名 OM_BRIDGE_COMFYUI_SERVER_URL /
-                                                      COMFYUI_SERVER_URL 仍有效）
-      > backend.comfyui.base_url                     （旧名 COMFYUI_BASE_URL，已废弃）
+      > backend.comfyui.<capability>_server_url      （规范名 OMB_COMFY_VIDEO_SERVER_URL 等）
+      > backend.comfyui.server_url                   （规范名 OMB_COMFY_SERVER_URL）
       > http://localhost:8188
 
 默认能力是 ``video``，因此不额外配置时的行为与旧实现完全相同
@@ -123,7 +120,6 @@ class ComfyUIBackend(Backend):
         if capability:
             candidates.append(section.get(f"{capability}_server_url"))
         candidates.append(section.get("server_url"))
-        candidates.append(section.get("base_url"))
         for candidate in candidates:
             if candidate:
                 return str(candidate).rstrip("/")

@@ -82,7 +82,7 @@ def test_error_payload_is_json_serializable_without_default() -> None:
     ``json.dumps`` 把它挡住。
     """
     samples = [
-        E.ConfigError("配置缺失", hint="设置 OM_BRIDGE_COMFY_SERVER_URL"),
+        E.ConfigError("配置缺失", hint="设置 OMB_COMFY_SERVER_URL"),
         E.ConfigMissingError("缺少必需配置项 global.workspace"),
         E.UnknownBackendError("未知后端 'x'", hint="已注册的后端：comfyui"),
         E.BackendUnavailableError("连接被拒", hint="检查后端是否启动"),

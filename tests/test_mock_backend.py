@@ -36,8 +36,8 @@ def workspace(tmp_path: Path) -> Path:
 @pytest.fixture()
 def session(workspace: Path) -> Session:
     cfg = Config(environ={
-        "OM_BRIDGE_DEFAULT_BACKEND": "mock",
-        "OM_BRIDGE_WORKSPACE": str(workspace),
+        "OMB_DEFAULT_BACKEND": "mock",
+        "OMB_WORKSPACE": str(workspace),
     })
     return Session(cfg)
 

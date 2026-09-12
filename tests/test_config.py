@@ -28,8 +28,8 @@ def test_parse_env_file_basics(tmp_path) -> None:
             [
                 "# 注释行",
                 "",
-                "OM_BRIDGE_COMFY_SERVER_URL=http://192.168.3.3:8188",
-                'export OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH="608"',
+                "OMB_COMFY_SERVER_URL=http://192.168.3.3:8188",
+                'export OMB_MINIMAX_H3_WIDTH="608"',
                 "NO_PROXY=192.168.3.3,127.0.0.1,localhost",
                 "  空格两侧被裁掉  =  值  ",
             ]
@@ -37,8 +37,8 @@ def test_parse_env_file_basics(tmp_path) -> None:
         encoding="utf-8",
     )
     values = parse_env_file(path)
-    assert values["OM_BRIDGE_COMFY_SERVER_URL"] == "http://192.168.3.3:8188"
-    assert values["OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH"] == "608"   # export + 引号
+    assert values["OMB_COMFY_SERVER_URL"] == "http://192.168.3.3:8188"
+    assert values["OMB_MINIMAX_H3_WIDTH"] == "608"   # export + 引号
     assert values["NO_PROXY"].count(",") == 2
     assert values["空格两侧被裁掉"] == "值"
 
@@ -70,8 +70,8 @@ def test_parse_env_file_missing_file_is_empty(tmp_path) -> None:
 # ---------------------------------------------------------------------------
 def test_override_beats_environment() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
-        environ={"OM_BRIDGE_COMFY_SERVER_URL": "http://env:8188"},
+        file_values={"OMB_COMFY_SERVER_URL": "http://file:8188"},
+        environ={"OMB_COMFY_SERVER_URL": "http://env:8188"},
         overrides={"backend.comfyui.server_url": "http://override:8188"},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://override:8188"
@@ -80,15 +80,15 @@ def test_override_beats_environment() -> None:
 
 def test_environment_beats_file() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
-        environ={"OM_BRIDGE_COMFY_SERVER_URL": "http://env:8188"},
+        file_values={"OMB_COMFY_SERVER_URL": "http://file:8188"},
+        environ={"OMB_COMFY_SERVER_URL": "http://env:8188"},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://env:8188"
 
 
 def test_file_used_when_no_environment() -> None:
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
+        file_values={"OMB_COMFY_SERVER_URL": "http://file:8188"},
         environ={},
     )
     assert cfg.get("backend.comfyui.server_url") == "http://file:8188"
@@ -101,48 +101,16 @@ def test_builtin_default_when_nothing_set() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 兼容旧变量名（ADR-0004）—— 这是"升级不破坏存量部署"的关键
+# 命名契约（OMB_ 短前缀）—— 环境变量是公共地盘，必须有命名空间
 # ---------------------------------------------------------------------------
-def test_legacy_alias_is_honoured() -> None:
-    """存量 `.env` 里写的是 `COMFYUI_SERVER_URL`，必须照常生效。"""
-    cfg = Config(environ={"COMFYUI_SERVER_URL": "http://legacy:8188"})
-    assert cfg.get("backend.comfyui.server_url") == "http://legacy:8188"
+def test_every_setting_uses_omb_prefix_and_has_description() -> None:
+    """登记表的自省原则：每个设置项都必须带 OMB_ 前缀与说明。
 
-
-def test_legacy_alias_works_from_file_too() -> None:
-    cfg = Config(file_values={"COMFYUI_SERVER_URL": "http://legacy-file:8188"},
-                 environ={})
-    assert cfg.get("backend.comfyui.server_url") == "http://legacy-file:8188"
-
-
-def test_canonical_name_beats_alias_in_same_layer() -> None:
-    """规范名与旧名同层时，规范名优先 —— 否则用户无法用新名纠正旧值。
-
-    别名之间的顺序也有语义（排在前面的优先）：``OM_BRIDGE_COMFYUI_SERVER_URL``
-    是上一代规范名，比 ``COMFYUI_SERVER_URL`` 更"接近正主"。
-    """
-    cfg = Config(environ={
-        "OM_BRIDGE_COMFY_SERVER_URL": "http://canonical:8188",
-        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://old-canonical:8188",
-        "COMFYUI_SERVER_URL": "http://legacy:8188",
-    })
-    assert cfg.get("backend.comfyui.server_url") == "http://canonical:8188"
-
-    cfg = Config(environ={
-        "OM_BRIDGE_COMFYUI_SERVER_URL": "http://old-canonical:8188",
-        "COMFYUI_SERVER_URL": "http://legacy:8188",
-    })
-    assert cfg.get("backend.comfyui.server_url") == "http://old-canonical:8188"
-    assert cfg.source("backend.comfyui.server_url") == "env:OM_BRIDGE_COMFYUI_SERVER_URL"
-
-
-def test_every_canonical_setting_has_env_name_and_description() -> None:
-    """登记表的自省原则：每个设置项都必须有环境变量名与说明。
-
-    没有 env 名的项在部署侧无法配置；没有说明的项在 `config list` 里是噪音。
+    前缀防的是撞名：``TIMEOUT`` / ``STRICT`` / ``ENV_FILE`` 这类裸名在
+    MCP 宿主注入的环境与 CI 里极易与其他工具冲突（ADR-0009）。
     """
     for setting in (*GLOBAL_SETTINGS, *COMFYUI_SETTINGS, *H3_SETTINGS):
-        assert setting.env.startswith("OM_BRIDGE_"), setting.key
+        assert setting.env.startswith("OMB_"), setting.key
         assert setting.description, setting.key
 
 
@@ -153,37 +121,79 @@ def test_canonical_env_names_are_unique() -> None:
         seen[setting.env] = setting.key
 
 
-def test_aliases_do_not_collide_with_canonical_names() -> None:
-    """别名撞上别人的规范名会造成"改 A 影响 B"的灵异现象。"""
-    canonical = {s.env for s in (*GLOBAL_SETTINGS, *COMFYUI_SETTINGS, *H3_SETTINGS)}
+def test_no_alias_layer_remains() -> None:
+    """别名层已整体移除（ADR-0009 supersede ADR-0004）：登记表里不许有任何旧名残留。"""
     for setting in (*GLOBAL_SETTINGS, *COMFYUI_SETTINGS, *H3_SETTINGS):
-        for alias in setting.aliases:
-            assert alias not in canonical, f"{alias} 既是别名又是规范名"
+        assert not getattr(setting, "aliases", ()), setting.key
+        assert not getattr(setting, "deprecated_alias", False), setting.key
 
 
-def test_deprecated_base_url_alias_is_lowest_priority() -> None:
-    """`COMFYUI_BASE_URL` 是废弃别名（上游从不读它），不该压过 server_url。"""
-    cfg = Config(environ={
-        "COMFYUI_BASE_URL": "http://deprecated:8188",
-        "OM_BRIDGE_COMFY_SERVER_URL": "http://canonical:8188",
-    })
-    assert cfg.get("backend.comfyui.server_url") == "http://canonical:8188"
+def test_legacy_comfyui_names_are_no_longer_read() -> None:
+    """旧别名通道已删：COMFYUI_* 不再喂进任何配置项。
 
-
-def test_renamed_server_url_old_names_still_work() -> None:
-    """`OM_BRIDGE_COMFYUI_SERVER_URL` 从规范名降级为别名后，存量配置不能坏。
-
-    现网 SER 的配置文件与文档里写的都是这个名字 —— 改名若破坏它们，
-    等于把"升级零成本"变成了"升级先改配置"。
+    但它们**必须**出现在 report 的 unregistered 清单里 —— 否则存量环境里
+    的残留变量就成了"悄悄失效"的隐形状态，连排查线索都没有。
     """
-    cfg = Config(environ={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://ser:8188"})
-    assert cfg.get("backend.comfyui.server_url") == "http://ser:8188"
+    cfg = Config(environ={"COMFYUI_SERVER_URL": "http://legacy:8188"})
+    assert cfg.get("backend.comfyui.server_url") == "http://localhost:8188"  # 默认值，不是 legacy
+    assert cfg.source("backend.comfyui.server_url") == "default"
+    unregistered = cfg.report(include_unknown_env=True)["unregistered_env"]
+    assert any(item["name"] == "COMFYUI_SERVER_URL" for item in unregistered)
 
-    setting = next(s for s in COMFYUI_SETTINGS if s.key == "backend.comfyui.server_url")
-    assert setting.env == "OM_BRIDGE_COMFY_SERVER_URL"
-    assert "OM_BRIDGE_COMFYUI_SERVER_URL" in setting.aliases
-    assert "COMFYUI_SERVER_URL" in setting.aliases
-    assert setting.deprecated_alias, "降级后的旧名应被标记为已废弃"
+
+def test_old_om_bridge_prefix_is_not_read_either() -> None:
+    cfg = Config(environ={"OM_BRIDGE_COMFY_SERVER_URL": "http://old-prefix:8188"})
+    assert cfg.get("backend.comfyui.server_url") == "http://localhost:8188"
+    unregistered = cfg.report(include_unknown_env=True)["unregistered_env"]
+    assert any(item["name"] == "OM_BRIDGE_COMFY_SERVER_URL" for item in unregistered)
+
+
+def test_base_url_setting_is_gone() -> None:
+    """``backend.comfyui.base_url``（原 COMFYUI_BASE_URL）已随别名清理一并删除：
+    OpenMontage 从不读它，登记它只会制造"设了没效果"的陷阱。"""
+    keys = {s.key for s in COMFYUI_SETTINGS}
+    assert "backend.comfyui.base_url" not in keys
+
+
+# ---------------------------------------------------------------------------
+# 枚举（choices）—— 注释里写清楚，程序里也说得清
+# ---------------------------------------------------------------------------
+def test_enum_settings_declare_choices() -> None:
+    expected = {
+        "global.default_backend": ("comfyui", "mock"),
+        "global.log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
+        "solution.minimax_h3.ref_image_size": ("match", "max"),
+    }
+    all_settings = (*GLOBAL_SETTINGS, *COMFYUI_SETTINGS, *H3_SETTINGS)
+    for setting in all_settings:
+        if setting.key in expected:
+            assert setting.choices == expected[setting.key], setting.key
+
+
+def test_valid_enum_value_passes_silently() -> None:
+    cfg = Config(environ={
+        "OMB_DEFAULT_BACKEND": "mock",
+        "OMB_LOG_LEVEL": "WARNING",
+        "OMB_MINIMAX_H3_REF2V_IMAGE_SIZE": "max",
+    })
+    assert cfg.warnings == []
+    assert cfg.get("global.default_backend") == "mock"
+
+
+def test_invalid_enum_value_warns_but_does_not_raise() -> None:
+    """choices 是**开放枚举**：第三方插件可以扩展后端/方案，所以越界只告警。
+
+    告警走 warnings（config report 会展示），绝不静默吞掉。
+    """
+    cfg = Config(environ={"OMB_DEFAULT_BACKEND": "my_plugin_backend"})
+    assert cfg.get("global.default_backend") == "my_plugin_backend"
+    assert any("my_plugin_backend" in w for w in cfg.warnings), cfg.warnings
+
+
+def test_solution_enum_accepts_mode_suffix() -> None:
+    """``minimax_h3.t2v`` 是合法取值：按 ``.`` 前的段匹配枚举。"""
+    cfg = Config(environ={"OMB_DEFAULT_SOLUTION": "minimax_h3.t2v"})
+    assert cfg.warnings == []
 
 
 # ---------------------------------------------------------------------------
@@ -193,13 +203,13 @@ def test_type_coercion_from_strings() -> None:
     """环境变量永远是字符串，配置层负责还原成登记表里声明的类型。
 
     变量名不是"."替换成"_"那么简单：``backend.comfyui.server_url`` 对应
-    ``OM_BRIDGE_COMFY_SERVER_URL``（省略了 backend 段）。**以登记表的
+    ``OMB_COMFY_SERVER_URL``（省略了 backend 段）。**以登记表的
     ``env`` 字段为准**，别凭键名推测 —— 写错名字不会报错，只会静默用默认值。
     """
     cfg = Config(environ={
-        "OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH": "608",
-        "OM_BRIDGE_TIMEOUT": "1200.5",
-        "OM_BRIDGE_VALIDATE": "false",
+        "OMB_MINIMAX_H3_WIDTH": "608",
+        "OMB_TIMEOUT": "1200.5",
+        "OMB_VALIDATE": "false",
     }, file_values={})
     assert cfg.get("solution.minimax_h3.width") == 608
     assert isinstance(cfg.get("solution.minimax_h3.width"), int)
@@ -214,22 +224,22 @@ def test_wrong_env_name_falls_back_to_default_silently() -> None:
     程序**不会**因为名字拼错而报错（否则任何前缀共存都会炸），所以必须有
     ``config report`` 的 unregistered 一栏来兜底。
     """
-    cfg = Config(environ={"OM_BRIDGE_GLOBAL_TIMEOUT": "1200.5"}, file_values={})
+    cfg = Config(environ={"OMB_GLOBAL_TIMEOUT": "1200.5"}, file_values={})
     assert cfg.get("global.timeout") == 900          # 内置默认
     assert cfg.is_default("global.timeout")
     unregistered = cfg.report(include_unknown_env=True)["unregistered_env"]
-    assert any(item["name"] == "OM_BRIDGE_GLOBAL_TIMEOUT" for item in unregistered)
+    assert any(item["name"] == "OMB_GLOBAL_TIMEOUT" for item in unregistered)
 
 
 def test_list_type_splits_on_comma() -> None:
     cfg = Config(environ={
-        "OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_IMAGES": "a.png, b.png ,c.png"
+        "OMB_MINIMAX_H3_REF2V_IMAGES": "a.png, b.png ,c.png"
     })
     assert cfg.get("solution.minimax_h3.ref_images") == ["a.png", "b.png", "c.png"]
 
 
 def test_empty_list_value_is_empty_list() -> None:
-    cfg = Config(environ={"OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_IMAGES": ""})
+    cfg = Config(environ={"OMB_MINIMAX_H3_REF2V_IMAGES": ""})
     assert cfg.get("solution.minimax_h3.ref_images") == []
 
 
@@ -237,7 +247,7 @@ def test_empty_list_value_is_empty_list() -> None:
 # 作用域视图
 # ---------------------------------------------------------------------------
 def test_scoped_backend_view() -> None:
-    cfg = Config(environ={"OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL": "http://video:8188"})
+    cfg = Config(environ={"OMB_COMFY_VIDEO_SERVER_URL": "http://video:8188"})
     comfyui = cfg.backend("comfyui")
     assert comfyui.get("video_server_url") == "http://video:8188"
     assert comfyui.key("video_server_url") == "backend.comfyui.video_server_url"
@@ -245,7 +255,7 @@ def test_scoped_backend_view() -> None:
 
 
 def test_scoped_solution_view() -> None:
-    cfg = Config(environ={"OM_BRIDGE_SOLUTION_MINIMAX_H3_STEPS": "4"})
+    cfg = Config(environ={"OMB_MINIMAX_H3_STEPS": "4"})
     assert cfg.solution("minimax_h3").get_int("steps") == 4
 
 
@@ -253,56 +263,38 @@ def test_scoped_solution_view() -> None:
 # 自省：这是"我改了配置没生效"的答案来源
 # ---------------------------------------------------------------------------
 def test_explain_tells_where_value_came_from() -> None:
-    """来源标签必须**带变量名**，不能只写个 ``file``。
-
-    因为一个配置项有规范名 + 若干旧名别名。只说"来自文件"不足以回答
-    "那我的 ``OM_BRIDGE_COMFY_SERVER_URL`` 到底有没有被读到" ——
-    用户在文件里同时留着新旧两个名字时，正是最需要看这一栏的时候。
-    """
-    cfg = Config(file_values={"OM_BRIDGE_COMFY_SERVER_URL": "http://file:8188"},
+    """来源标签必须**带变量名**，不能只写个 ``file`` ——
+    否则"我的 OMB_COMFY_SERVER_URL 到底有没有被读到"没法回答。"""
+    cfg = Config(file_values={"OMB_COMFY_SERVER_URL": "http://file:8188"},
                  environ={}, env_file="/tmp/x.env")
     info = cfg.explain("backend.comfyui.server_url")
     assert info["value"] == "http://file:8188"
-    assert info["source"] == "file:OM_BRIDGE_COMFY_SERVER_URL"
-    assert info["env"] == "OM_BRIDGE_COMFY_SERVER_URL"
-    assert "COMFYUI_SERVER_URL" in info["aliases"]
-    assert "OM_BRIDGE_COMFYUI_SERVER_URL" in info["aliases"]
+    assert info["source"] == "file:OMB_COMFY_SERVER_URL"
+    assert info["env"] == "OMB_COMFY_SERVER_URL"
+    assert info["choices"] == []
 
 
-def test_explain_reports_deprecated_alias_source_verbatim() -> None:
-    """旧规范名（现别名）生效时，来源要写清是**旧名**给的 ——
-    提示用户"这个文件可以顺手迁移到新名了"。"""
-    cfg = Config(file_values={"OM_BRIDGE_COMFYUI_SERVER_URL": "http://old:8188"},
-                 environ={}, env_file="/tmp/x.env")
-    info = cfg.explain("backend.comfyui.server_url")
-    assert info["value"] == "http://old:8188"
-    assert info["source"] == "file:OM_BRIDGE_COMFYUI_SERVER_URL"
-
-
-def test_explain_reports_which_alias_was_honoured() -> None:
-    """旧名生效时来源里要写清是**旧名**给的 —— 否则用户会以为新名也生效了。"""
-    cfg = Config(environ={"COMFYUI_SERVER_URL": "http://legacy:8188"}, file_values={})
-    info = cfg.explain("backend.comfyui.server_url")
-    assert info["value"] == "http://legacy:8188"
-    assert info["source"] == "env:COMFYUI_SERVER_URL"
+def test_explain_shows_choices_for_enum_settings() -> None:
+    info = Config(environ={}).explain("global.log_level")
+    assert info["choices"] == ["DEBUG", "INFO", "WARNING", "ERROR"]
 
 
 def test_source_labels_are_closed_set() -> None:
     """来源标签是给脚本判断的，取值必须收敛，不能随手造新词。"""
     cfg = Config(
-        file_values={"OM_BRIDGE_COMFYUI_READ_TIMEOUT": "300"},
-        environ={"OM_BRIDGE_TIMEOUT": "60"},
+        file_values={"OMB_COMFY_READ_TIMEOUT": "300"},
+        environ={"OMB_TIMEOUT": "60"},
         overrides={"backend.comfyui.server_url": "http://o:8188"},
     )
     assert cfg.source("backend.comfyui.server_url") == "override"
-    assert cfg.source("global.timeout") == "env:OM_BRIDGE_TIMEOUT"
-    assert cfg.source("backend.comfyui.read_timeout") == "file:OM_BRIDGE_COMFYUI_READ_TIMEOUT"
+    assert cfg.source("global.timeout") == "env:OMB_TIMEOUT"
+    assert cfg.source("backend.comfyui.read_timeout") == "file:OMB_COMFY_READ_TIMEOUT"
     assert cfg.source("global.poll_interval") == "default"
 
 
 def test_report_masks_secrets() -> None:
     """`config report` 的输出会被贴进 issue / 分享给同事，密钥必须掩码。"""
-    cfg = Config(environ={"OM_BRIDGE_COMFYUI_API_TOKEN": "super-secret-token"})
+    cfg = Config(environ={"OMB_COMFY_API_TOKEN": "super-secret-token"})
     payload = cfg.report()
     assert "secret" in payload or isinstance(payload, dict)
     dumped = repr(payload)
@@ -314,10 +306,10 @@ def test_report_lists_unregistered_env_variables() -> None:
 
     与"不造 no-op 变量"的原则配套 —— 两者一起把"改了不生效"变成可自助排查的问题。
     """
-    cfg = Config(environ={"COMFYUI_TOTALLY_MADE_UP_VAR": "x"})
+    cfg = Config(environ={"OMB_TOTALLY_MADE_UP_VAR": "x"})
     payload = cfg.report(include_unknown_env=True)
     unknown = payload.get("unknown_env") or payload.get("unregistered_env") or []
-    assert any("COMFYUI_TOTALLY_MADE_UP_VAR" in str(item) for item in unknown)
+    assert any("OMB_TOTALLY_MADE_UP_VAR" in str(item) for item in unknown)
 
 
 def test_removed_workflow_path_variables_are_not_registered() -> None:

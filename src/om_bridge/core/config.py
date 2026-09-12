@@ -1,13 +1,12 @@
-"""配置系统 —— 分层解析 + 旧变量名兼容 + 自描述。
+"""配置系统 —— 分层解析 + 自描述。
 
 三个必须解决的问题
 ------------------
-**1. 旧变量名必须继续可用。**
-现网 SER 上的 ``comfyui.env`` 用的是 ``COMFYUI_SERVER_URL`` 这一组名字，
-而且 ``OpenMontage/.env`` 里也写死了同样的名字（那是 OpenMontage 自己读的）。
-迁移到 OM-Bridge 时如果强制改名，等于要同时改两处且冒着打断生产线的风险。
-所以这里的做法是：**规范名 + 别名表**。规范名是新名字（``OM_BRIDGE_...``），
-别名是旧名字；两者等价读取，规范名优先。旧名字永远不会被删掉。
+**1. 命名空间必须清晰。**
+环境变量是进程级的公共地盘，``TIMEOUT`` / ``STRICT`` / ``ENV_FILE`` 这类
+通用词极易与其他工具撞名（Hermes 等 MCP 宿主会给子进程注入环境变量，
+CI 里更是常态）。所以每个规范名都带 **``OMB_`` 短前缀**：比完整项目名短，
+又足以隔出一片自己的命名空间。
 
 **2. 配置必须能自我解释。**
 原实现的配置知识一半在 ``comfyui.env`` 的注释里、一半在部署脚本里，
@@ -24,7 +23,10 @@
 内置默认值           代码里的兜底
 ===================  ==========================================
 
-同一层内，规范名优先于别名（两个都设时以规范名为准，并在 ``explain`` 里提示冲突）。
+历史说明（2026-09）：更早的版本曾保留 ``COMFYUI_*`` 等旧名作为兼容别名；
+别名层已于 v0.1 配置清理中整体移除（不留残留）。存量旧名不再被读取，
+`config report --include-unknown-env` 会把环境里遗留的旧变量作为
+"未登记变量"明确指出来，便于一次性清干净。
 """
 
 from __future__ import annotations
@@ -52,156 +54,148 @@ class Setting:
     key: str
     """规范键，点分命名：``<scope>.<owner>.<name>``。"""
     env: str
-    """规范环境变量名。"""
+    """规范环境变量名（``OMB_`` 短前缀）。"""
     default: Any = None
     type: str = "string"
     description: str = ""
-    aliases: tuple[str, ...] = ()
-    """兼容用的旧环境变量名（如 ``COMFYUI_SERVER_URL``）。排在前面的优先。"""
     secret: bool = False
     """标记为敏感的项，在报告里会被打码。"""
-    deprecated_alias: bool = False
-    """别名本身已不推荐（例如 ``COMFYUI_BASE_URL`` 从来不被 OpenMontage 读取）。"""
+    choices: tuple[str, ...] = ()
+    """枚举型配置的合法取值。空元组 = 自由取值。
+
+    语义是**开放枚举**：取值不在列表内时只产生告警、不报错——
+    因为 ``default_backend`` / ``default_solution`` 这类项可被第三方
+    插件扩展（entry points），登记表不可能预先穷举。
+    ``<name>.<mode>`` 形式按 ``.`` 前的段匹配（用于 default_solution）。
+    """
 
     def to_dict(self) -> dict:
         return {
             "key": self.key,
             "env": self.env,
-            "aliases": list(self.aliases),
             "type": self.type,
             "default": None if self.secret else self.default,
+            "choices": list(self.choices),
             "description": self.description,
             "secret": self.secret,
         }
 
 
 def _s(key: str, env: str, default: Any = None, type: str = "string", description: str = "",
-       aliases: tuple[str, ...] = (), secret: bool = False, deprecated_alias: bool = False) -> Setting:
-    return Setting(key, env, default, type, description, aliases, secret, deprecated_alias)
+       secret: bool = False, choices: tuple[str, ...] = ()) -> Setting:
+    return Setting(key, env, default, type, description, secret, choices)
 
 
 # --- 全局 ------------------------------------------------------------------
 GLOBAL_SETTINGS: list[Setting] = [
-    _s("global.default_backend", "OM_BRIDGE_DEFAULT_BACKEND", "comfyui", "string",
-       "未显式指定后端时使用的默认后端名。"),
-    _s("global.default_solution", "OM_BRIDGE_DEFAULT_SOLUTION", "minimax_h3", "string",
-       "未显式指定方案时使用的默认方案键。"),
-    _s("global.workspace", "OM_BRIDGE_WORKSPACE", ".", "path",
+    _s("global.default_backend", "OMB_DEFAULT_BACKEND", "comfyui", "string",
+       "未显式指定后端时使用的默认后端名。",
+       choices=("comfyui", "mock")),
+    _s("global.default_solution", "OMB_DEFAULT_SOLUTION", "minimax_h3", "string",
+       "未显式指定方案时使用的默认方案键。可写成带模式的别名（如 minimax_h3.t2v）。",
+       choices=("minimax_h3", "echo")),
+    _s("global.workspace", "OMB_WORKSPACE", ".", "path",
        "工作区根目录。产物、上传缓存等运行时目录默认挂在它下面。"),
-    _s("global.output_dir", "OM_BRIDGE_OUTPUT_DIR", "", "path",
+    _s("global.output_dir", "OMB_OUTPUT_DIR", "", "path",
        "产物默认落盘目录。留空则用 <workspace>/var/output。"),
-    _s("global.connect_timeout", "OM_BRIDGE_CONNECT_TIMEOUT", 15, "float",
+    _s("global.connect_timeout", "OMB_CONNECT_TIMEOUT", 15, "float",
        "连接与轻量探测的超时（秒）。"),
-    _s("global.timeout", "OM_BRIDGE_TIMEOUT", 900, "float",
+    _s("global.timeout", "OMB_TIMEOUT", 900, "float",
        "等待作业完成的总超时（秒）。超时**不等于失败**，可用 resume 续等。"),
-    _s("global.poll_interval", "OM_BRIDGE_POLL_INTERVAL", 5, "float",
+    _s("global.poll_interval", "OMB_POLL_INTERVAL", 5, "float",
        "轮询间隔（秒）。后端越慢越应调大，减少无谓请求。"),
-    _s("global.validate", "OM_BRIDGE_VALIDATE", True, "bool",
+    _s("global.validate", "OMB_VALIDATE", True, "bool",
        "提交前是否做静态校验。建议保持 true：校验零成本，能省下一次无效排队。"),
-    _s("global.strict", "OM_BRIDGE_STRICT", False, "bool",
+    _s("global.strict", "OMB_STRICT", False, "bool",
        "严格模式：把非阻断告警也视为失败。CI 场景有用。"),
-    _s("global.log_level", "OM_BRIDGE_LOG_LEVEL", "INFO", "string",
-       "日志级别（DEBUG/INFO/WARNING/ERROR）。CLI/MCP 下日志只写 stderr。"
+    _s("global.log_level", "OMB_LOG_LEVEL", "INFO", "string",
+       "日志级别。CLI/MCP 下日志只写 stderr。"
        "⚠ 只认**进程环境变量**：日志必须在读到任何 .env 之前初始化，"
-       "所以写在 .env 里的同名变量不生效（这是启动顺序的固有限制，不是疏漏）。"),
-    _s("global.env_file", "OM_BRIDGE_ENV_FILE", "", "path",
+       "所以写在 .env 里的同名变量不生效（这是启动顺序的固有限制，不是疏漏）。",
+       choices=("DEBUG", "INFO", "WARNING", "ERROR")),
+    _s("global.env_file", "OMB_ENV_FILE", "", "path",
        "显式指定配置文件路径。留空则按 workspace/.env 与 config/om-bridge.env 依次探测。"),
 ]
 
 # --- ComfyUI 后端 ----------------------------------------------------------
-# 别名列即旧 comfyui.env 里的变量名。规范名与旧名同时存在于同一优先级层。
 COMFYUI_SETTINGS: list[Setting] = [
-    _s("backend.comfyui.server_url", "OM_BRIDGE_COMFY_SERVER_URL", "http://localhost:8188", "string",
-       "ComfyUI 基地址。所有工具的公共地址，单机部署只需设这一个。"
-       "旧名 OM_BRIDGE_COMFYUI_SERVER_URL / COMFYUI_SERVER_URL 仍然有效（已废弃）。",
-       ("OM_BRIDGE_COMFYUI_SERVER_URL", "COMFYUI_SERVER_URL"), False, True),
-    _s("backend.comfyui.video_server_url", "OM_BRIDGE_COMFYUI_VIDEO_SERVER_URL", "", "string",
-       "视频能力专用地址，留空继承 server_url（单机部署应留空）。",
-       ("COMFYUI_VIDEO_SERVER_URL",)),
-    _s("backend.comfyui.image_server_url", "OM_BRIDGE_COMFYUI_IMAGE_SERVER_URL", "", "string",
-       "图像能力专用地址，留空继承 server_url。", ("COMFYUI_IMAGE_SERVER_URL",)),
-    _s("backend.comfyui.music_server_url", "OM_BRIDGE_COMFYUI_MUSIC_SERVER_URL", "", "string",
-       "音频/音乐能力专用地址，留空继承 server_url。", ("COMFYUI_MUSIC_SERVER_URL",)),
-    _s("backend.comfyui.base_url", "OM_BRIDGE_COMFYUI_BASE_URL", "", "string",
-       "⚠ 已废弃的别名，优先级最低。OpenMontage 从不读取这个名字，请改用 server_url。",
-       ("COMFYUI_BASE_URL",), deprecated_alias=True),
-    _s("backend.comfyui.connect_timeout", "OM_BRIDGE_COMFYUI_CONNECT_TIMEOUT", 15, "float",
-       "探测 /system_stats 等轻量请求的超时（秒）。", ("COMFYUI_CONNECT_TIMEOUT",)),
-    _s("backend.comfyui.read_timeout", "OM_BRIDGE_COMFYUI_READ_TIMEOUT", 900, "float",
-       "等待一次渲染完成的总超时（秒）。", ("COMFYUI_READ_TIMEOUT",)),
-    _s("backend.comfyui.poll_interval", "OM_BRIDGE_COMFYUI_POLL_INTERVAL", 5, "float",
-       "/history 轮询间隔（秒）。", ("COMFYUI_POLL_INTERVAL",)),
-    _s("backend.comfyui.api_token", "OM_BRIDGE_COMFYUI_API_TOKEN", "", "string",
-       "Bearer token。仅当 ComfyUI 位于鉴权代理之后时需要。", ("COMFYUI_API_TOKEN",), secret=True),
-    _s("backend.comfyui.auth_user", "OM_BRIDGE_COMFYUI_AUTH_USER", "", "string",
-       "HTTP Basic 用户名（与 api_token 二选一）。", ("COMFYUI_AUTH_USER",), secret=True),
-    _s("backend.comfyui.auth_password", "OM_BRIDGE_COMFYUI_AUTH_PASSWORD", "", "string",
-       "HTTP Basic 密码。", ("COMFYUI_AUTH_PASSWORD",), secret=True),
-    _s("backend.comfyui.upload_timeout", "OM_BRIDGE_COMFYUI_UPLOAD_TIMEOUT", 300, "float",
-       "单次媒体上传的超时（秒）。", ()),
-    _s("backend.comfyui.object_info_timeout", "OM_BRIDGE_COMFYUI_OBJECT_INFO_TIMEOUT", 180, "float",
-       "拉取 /object_info 的超时（秒）。节点多、插件多的实例会明显偏慢。", ()),
+    _s("backend.comfyui.server_url", "OMB_COMFY_SERVER_URL", "http://localhost:8188", "string",
+       "ComfyUI 基地址。所有工具的公共地址，单机部署只需设这一个。"),
+    _s("backend.comfyui.video_server_url", "OMB_COMFY_VIDEO_SERVER_URL", "", "string",
+       "视频能力专用地址，留空继承 server_url（单机部署应留空）。"),
+    _s("backend.comfyui.image_server_url", "OMB_COMFY_IMAGE_SERVER_URL", "", "string",
+       "图像能力专用地址，留空继承 server_url。"),
+    _s("backend.comfyui.music_server_url", "OMB_COMFY_MUSIC_SERVER_URL", "", "string",
+       "音频/音乐能力专用地址，留空继承 server_url。"),
+    _s("backend.comfyui.connect_timeout", "OMB_COMFY_CONNECT_TIMEOUT", 15, "float",
+       "探测 /system_stats 等轻量请求的超时（秒）。"),
+    _s("backend.comfyui.read_timeout", "OMB_COMFY_READ_TIMEOUT", 900, "float",
+       "等待一次渲染完成的总超时（秒）。"),
+    _s("backend.comfyui.poll_interval", "OMB_COMFY_POLL_INTERVAL", 5, "float",
+       "/history 轮询间隔（秒）。"),
+    _s("backend.comfyui.api_token", "OMB_COMFY_API_TOKEN", "", "string",
+       "Bearer token。仅当 ComfyUI 位于鉴权代理之后时需要。", secret=True),
+    _s("backend.comfyui.auth_user", "OMB_COMFY_AUTH_USER", "", "string",
+       "HTTP Basic 用户名（与 api_token 二选一）。", secret=True),
+    _s("backend.comfyui.auth_password", "OMB_COMFY_AUTH_PASSWORD", "", "string",
+       "HTTP Basic 密码。", secret=True),
+    _s("backend.comfyui.upload_timeout", "OMB_COMFY_UPLOAD_TIMEOUT", 300, "float",
+       "单次媒体上传的超时（秒）。"),
+    _s("backend.comfyui.object_info_timeout", "OMB_COMFY_OBJECT_INFO_TIMEOUT", 180, "float",
+       "拉取 /object_info 的超时（秒）。节点多、插件多的实例会明显偏慢。"),
 ]
 
 # --- MiniMax H3 方案 -------------------------------------------------------
-# 别名列对应旧 comfyui.env 的 COMFYUI_MINIMAX_H3_* 一组。
 H3_SETTINGS: list[Setting] = [
-    _s("solution.minimax_h3.width", "OM_BRIDGE_SOLUTION_MINIMAX_H3_WIDTH", 864, "integer",
-       "输出宽度，必须是 32 的倍数。", ("COMFYUI_MINIMAX_H3_WIDTH",)),
-    _s("solution.minimax_h3.height", "OM_BRIDGE_SOLUTION_MINIMAX_H3_HEIGHT", 480, "integer",
-       "输出高度，必须是 32 的倍数。", ("COMFYUI_MINIMAX_H3_HEIGHT",)),
-    _s("solution.minimax_h3.length", "OM_BRIDGE_SOLUTION_MINIMAX_H3_LENGTH", 124, "integer",
-       "帧数（24fps），会吸附到 17k+5 栅格：5, 22, 39, ... 124≈5.2s。",
-       ("COMFYUI_MINIMAX_H3_LENGTH",)),
-    _s("solution.minimax_h3.fps", "OM_BRIDGE_SOLUTION_MINIMAX_H3_FPS", 24, "integer",
-       "封装帧率。", ("COMFYUI_MINIMAX_H3_FPS",)),
-    _s("solution.minimax_h3.steps", "OM_BRIDGE_SOLUTION_MINIMAX_H3_STEPS", 0, "integer",
-       "采样步数。0 = 按模式自动（ref2v 用 4，其余用 8）。必须与所选 LoRA 配对。",
-       ("COMFYUI_MINIMAX_H3_STEPS",)),
+    _s("solution.minimax_h3.width", "OMB_MINIMAX_H3_WIDTH", 864, "integer",
+       "输出宽度，必须是 32 的倍数。"),
+    _s("solution.minimax_h3.height", "OMB_MINIMAX_H3_HEIGHT", 480, "integer",
+       "输出高度，必须是 32 的倍数。"),
+    _s("solution.minimax_h3.length", "OMB_MINIMAX_H3_LENGTH", 124, "integer",
+       "帧数（24fps），会吸附到 17k+5 栅格：5, 22, 39, ... 124≈5.2s。"),
+    _s("solution.minimax_h3.fps", "OMB_MINIMAX_H3_FPS", 24, "integer",
+       "封装帧率。"),
+    _s("solution.minimax_h3.steps", "OMB_MINIMAX_H3_STEPS", 0, "integer",
+       "采样步数。0 = 按模式自动（ref2v 用 4，其余用 8）。必须与所选 LoRA 配对。"),
 
-    _s("solution.minimax_h3.unet", "OM_BRIDGE_SOLUTION_MINIMAX_H3_UNET",
+    _s("solution.minimax_h3.unet", "OMB_MINIMAX_H3_UNET",
        "minimax_h3_fl2va_pruned_int8_convrot.safetensors", "string",
-       "t2v/i2v/flf2v 用的扩散模型（fl2va 系列）。", ("COMFYUI_MINIMAX_H3_UNET",)),
-    _s("solution.minimax_h3.clip", "OM_BRIDGE_SOLUTION_MINIMAX_H3_CLIP",
+       "t2v/i2v/flf2v 用的扩散模型（fl2va 系列）。"),
+    _s("solution.minimax_h3.clip", "OMB_MINIMAX_H3_CLIP",
        "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "string",
-       "Qwen3-VL 文本编码器。", ("COMFYUI_MINIMAX_H3_CLIP",)),
-    _s("solution.minimax_h3.video_vae", "OM_BRIDGE_SOLUTION_MINIMAX_H3_VIDEO_VAE",
+       "Qwen3-VL 文本编码器。"),
+    _s("solution.minimax_h3.video_vae", "OMB_MINIMAX_H3_VIDEO_VAE",
        "minimax_h3_video_vae_fp16.safetensors", "string",
-       "视频 VAE。", ("COMFYUI_MINIMAX_H3_VIDEO_VAE",)),
-    _s("solution.minimax_h3.audio_vae", "OM_BRIDGE_SOLUTION_MINIMAX_H3_AUDIO_VAE",
+       "视频 VAE。"),
+    _s("solution.minimax_h3.audio_vae", "OMB_MINIMAX_H3_AUDIO_VAE",
        "minimax_h3_audio_vae_fp32.safetensors", "string",
-       "音频 VAE。H3 是音视频联合生成，缺它就没有音轨。", ("COMFYUI_MINIMAX_H3_AUDIO_VAE",)),
-    _s("solution.minimax_h3.turbo_lora", "OM_BRIDGE_SOLUTION_MINIMAX_H3_TURBO_LORA",
+       "音频 VAE。H3 是音视频联合生成，缺它就没有音轨。"),
+    _s("solution.minimax_h3.turbo_lora", "OMB_MINIMAX_H3_TURBO_LORA",
        "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors", "string",
-       "8 步 Turbo LoRA（配合 steps=8）。", ("COMFYUI_MINIMAX_H3_TURBO_LORA",)),
+       "8 步 Turbo LoRA（配合 steps=8）。"),
 
-    _s("solution.minimax_h3.ref2v_unet", "OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_UNET",
+    _s("solution.minimax_h3.ref2v_unet", "OMB_MINIMAX_H3_REF2V_UNET",
        "minimax_h3_ref2va_pruned_int8_convrot.safetensors", "string",
-       "ref2v 专用扩散模型（ref2va 系列）。与 fl2va **不可互换**。",
-       ("COMFYUI_MINIMAX_H3_REF2V_UNET",)),
-    _s("solution.minimax_h3.ref2v_turbo_lora", "OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_TURBO_LORA",
+       "ref2v 专用扩散模型（ref2va 系列）。与 fl2va **不可互换**。"),
+    _s("solution.minimax_h3.ref2v_turbo_lora", "OMB_MINIMAX_H3_REF2V_TURBO_LORA",
        "minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors", "string",
-       "ref2v 专用 4 步 Turbo LoRA（配合 steps=4）。",
-       ("COMFYUI_MINIMAX_H3_REF2V_TURBO_LORA",)),
-    _s("solution.minimax_h3.ref_image_size", "OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_IMAGE_SIZE",
+       "ref2v 专用 4 步 Turbo LoRA（配合 steps=4）。"),
+    _s("solution.minimax_h3.ref_image_size", "OMB_MINIMAX_H3_REF2V_IMAGE_SIZE",
        "match", "string",
        "参考图缩放模式：match=缩到生成分辨率（快）；max=保留 2048px 短边（身份更保真、慢数倍）。",
-       ("COMFYUI_MINIMAX_H3_REF2V_IMAGE_SIZE",)),
-    _s("solution.minimax_h3.ref_images", "OM_BRIDGE_SOLUTION_MINIMAX_H3_REF2V_IMAGES",
+       choices=("match", "max")),
+    _s("solution.minimax_h3.ref_images", "OMB_MINIMAX_H3_REF2V_IMAGES",
        [], "list",
-       "默认参考图文件名（已位于后端 input 目录中的名字）。仅在 ref2v 未显式给出参考图时生效。",
-       ("COMFYUI_MINIMAX_H3_REF2V_IMAGES",)),
+       "默认参考图文件名（已位于后端 input 目录中的名字）。仅在 ref2v 未显式给出参考图时生效。"),
 
-    _s("solution.minimax_h3.preflight_models", "OM_BRIDGE_SOLUTION_MINIMAX_H3_PREFLIGHT_MODELS",
+    _s("solution.minimax_h3.preflight_models", "OMB_MINIMAX_H3_PREFLIGHT_MODELS",
        [], "list",
        "用于向外部框架声明「本机 H3 就绪」的扩散权重要求（逗号分隔）。"
-       "由 OpenMontage 集成在发布托管块时读取并写出 COMFYUI_H3_LOCAL_MODELS。",
-       ("COMFYUI_H3_LOCAL_MODELS",)),
-    _s("solution.minimax_h3.graph_dir", "OM_BRIDGE_SOLUTION_MINIMAX_H3_GRAPH_DIR",
+       "由 OpenMontage 集成在发布托管块时读取并写出 COMFYUI_H3_LOCAL_MODELS。"),
+    _s("solution.minimax_h3.graph_dir", "OMB_MINIMAX_H3_GRAPH_DIR",
        "", "path",
        "物化后的计算图落盘目录（外部框架需要「文件路径 + 节点 ID」而非内存图时使用）。"
-       "留空则用 <workspace>/var/graphs。",
-       ()),
+       "留空则用 <workspace>/var/graphs。"),
 ]
 
 # 说明（迁移相关）：旧 comfyui.env 里的以下四个变量**不再被读取**，因此已从登记表移除：
@@ -210,11 +204,15 @@ H3_SETTINGS: list[Setting] = [
 # 它们存在的唯一原因是"OpenMontage 必须拿到一个文件路径 + 节点 ID"。
 # 现在这件事由集成层负责（om-bridge publish / gen-workflow 现场生成并记录），
 # 核心层不再持有"预生成文件"这个中间态 —— 少一个状态就少一类不同步的问题。
+#
+# 同批清理（2026-09 配置整顿）：以下旧名全部**不再被读取**，登记表中亦无别名残留：
+#   OM_BRIDGE_*（全部旧前缀）、COMFYUI_*（原别名组）、OM_BRIDGE_COMFYUI_BASE_URL /
+#   COMFYUI_BASE_URL（从未被 OpenMontage 读取的废弃项，连同 backend.comfyui.base_url
+#   配置项一并删除）。
 
 ALL_SETTINGS: list[Setting] = GLOBAL_SETTINGS + COMFYUI_SETTINGS + H3_SETTINGS
 SETTINGS_BY_KEY: dict[str, Setting] = {s.key: s for s in ALL_SETTINGS}
 SETTINGS_BY_ENV: dict[str, Setting] = {s.env: s for s in ALL_SETTINGS}
-SETTINGS_BY_ALIAS: dict[str, Setting] = {a: s for s in ALL_SETTINGS for a in s.aliases}
 
 
 # ===========================================================================
@@ -302,7 +300,7 @@ class Config:
 
     # -- 解析 ---------------------------------------------------------------
     def _resolve_sources(self) -> None:
-        """确定每个设置项的取值与来源，并记录规范名/别名冲突。"""
+        """确定每个设置项的取值与来源，并对越界枚举值产生告警。"""
         self._values: dict[str, Any] = {}
         self._sources: dict[str, str] = {}
 
@@ -313,28 +311,20 @@ class Config:
                 self._sources[setting.key] = "override"
                 continue
 
-            # 2) 进程环境（规范名优先，其次别名）
-            found_env = None
-            for name in (setting.env, *setting.aliases):
-                if name in self.environ and self.environ[name] != "":
-                    found_env = name
-                    break
-            if found_env:
-                self._values[setting.key] = self._coerce(setting, self.environ[found_env])
-                self._sources[setting.key] = f"env:{found_env}"
-                self._note_alias_conflict(setting)
+            # 2) 进程环境
+            if setting.env in self.environ and self.environ[setting.env] != "":
+                self._values[setting.key] = self._coerce(setting, self.environ[setting.env])
+                self._sources[setting.key] = f"env:{setting.env}"
+                self._check_choices(setting, self._values[setting.key],
+                                    origin=f"环境变量 {setting.env}")
                 continue
 
-            # 3) 配置文件（同样的规范名优先规则）
-            found_file = None
-            for name in (setting.env, *setting.aliases):
-                if self.file_values.get(name, "") != "":
-                    found_file = name
-                    break
-            if found_file:
-                self._values[setting.key] = self._coerce(setting, self.file_values[found_file])
-                self._sources[setting.key] = f"file:{found_file}"
-                self._note_alias_conflict(setting, in_file=True)
+            # 3) 配置文件
+            if self.file_values.get(setting.env, "") != "":
+                self._values[setting.key] = self._coerce(setting, self.file_values[setting.env])
+                self._sources[setting.key] = f"file:{setting.env}"
+                self._check_choices(setting, self._values[setting.key],
+                                    origin=f"配置文件 {setting.env}")
                 continue
 
             # 4) 内置默认
@@ -342,19 +332,19 @@ class Config:
                 self._values[setting.key] = setting.default
             self._sources[setting.key] = "default"
 
-    def _note_alias_conflict(self, setting: Setting, *, in_file: bool = False) -> None:
-        """规范名与别名同时出现且值不同 -> 提示，避免"改了旧名却没生效"的困惑。"""
-        pool = self.file_values if in_file else self.environ
-        canonical = pool.get(setting.env)
-        for alias in setting.aliases:
-            alias_value = pool.get(alias)
-            if not alias_value:
-                continue
-            if canonical and str(canonical) != str(alias_value):
-                self._warnings.append(
-                    f"{setting.key}: 规范名 {setting.env}={canonical!r} 与旧名 "
-                    f"{alias}={alias_value!r} 冲突，已采用规范名"
-                )
+    def _check_choices(self, setting: Setting, value: Any, *, origin: str) -> None:
+        """枚举越界只告警不报错——登记表对第三方插件是开放集合，不能武断拒绝。"""
+        if not setting.choices or value is None:
+            return
+        text = str(value)
+        # <name>.<mode> 形式按 "." 前的段匹配（default_solution 用）
+        if text in setting.choices or text.split(".", 1)[0] in setting.choices:
+            return
+        self._warnings.append(
+            f"{setting.key}: 取值 {text!r}（来自 {origin}）不在建议枚举 "
+            f"{'/'.join(setting.choices)} 内；内置实现可能不认识它"
+            f"（若来自第三方插件可忽略）"
+        )
 
     @staticmethod
     def _coerce(setting: Setting, raw: Any) -> Any:
@@ -371,7 +361,7 @@ class Config:
             except ValueError:
                 raise ConfigError(
                     f"{setting.key} 期望整数，收到 {raw!r}",
-                    hint=f"检查 {setting.env}（或旧名 {'/'.join(setting.aliases)}）",
+                    hint=f"检查 {setting.env}",
                 ) from None
         if setting.type == "float":
             try:
@@ -472,7 +462,7 @@ class Config:
             "key": key,
             "known": True,
             "env": setting.env,
-            "aliases": list(setting.aliases),
+            "choices": list(setting.choices),
             "value": "***" if setting.secret and value else value,
             "source": self.source(key),
             "default": setting.default,
@@ -501,11 +491,14 @@ class Config:
             "warnings": self._warnings,
         }
         if include_unknown_env:
-            known = set(SETTINGS_BY_ENV) | set(SETTINGS_BY_ALIAS)
+            # OMB_ 是本项目命名空间；OM_BRIDGE_ / COMFYUI_ 单列是因为旧前缀
+            # 与旧版别名已删除，环境里若还残留这些变量，它们现在就是"没人读"
+            # 的——正是要被这里抓出来的一次性清理线索。
+            known = set(SETTINGS_BY_ENV)
             candidates: dict[str, str] = {}
             for source, mapping in (("env", self.environ), ("file", self.file_values)):
                 for name in mapping:
-                    if name.startswith(("COMFYUI_", "OM_BRIDGE_")) and name not in known:
+                    if name.startswith(("OMB_", "OM_BRIDGE_", "COMFYUI_")) and name not in known:
                         candidates.setdefault(name, source)
             payload["unregistered_env"] = [
                 {"name": name, "origin": origin}
@@ -567,13 +560,13 @@ def load_config(
     配置文件查找顺序（取**第一个存在**的，不合并）::
 
         1. 参数 env_file
-        2. 环境变量 OM_BRIDGE_ENV_FILE
+        2. 环境变量 OMB_ENV_FILE
         3. <workspace>/.env
         4. <workspace>/config/om-bridge.env
         5. ~/.config/om-bridge/om-bridge.env
     """
     env = dict(os.environ if environ is None else environ)
-    ws = Path(workspace or env.get("OM_BRIDGE_WORKSPACE") or ".")
+    ws = Path(workspace or env.get("OMB_WORKSPACE") or ".")
 
     chosen: Path | None = None
     if env_file:
@@ -581,8 +574,8 @@ def load_config(
         if not candidate.is_file():
             raise ConfigError(f"指定的配置文件不存在：{candidate}")
         chosen = candidate
-    elif env.get("OM_BRIDGE_ENV_FILE"):
-        chosen = Path(env["OM_BRIDGE_ENV_FILE"]).expanduser()
+    elif env.get("OMB_ENV_FILE"):
+        chosen = Path(env["OMB_ENV_FILE"]).expanduser()
     else:
         for candidate in default_env_candidates(ws):
             if candidate.is_file():

@@ -102,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     env["PYTHONPATH"] = f"{_SRC}{os.pathsep}{env.get('PYTHONPATH', '')}".rstrip(os.pathsep)
     env["PYTHONIOENCODING"] = "utf-8"
     if args.env_file:
-        env["OM_BRIDGE_ENV_FILE"] = args.env_file
+        env["OMB_ENV_FILE"] = args.env_file
     # 进度行对 agent 无用，且会让宿主日志面板变吵 —— 但这里**不关**它，
     # 因为"进度是否泄漏到 stdout"正是被测项之一。服务端自己已经关掉了它。
     payload = "".join(line + "\n" for line in build_transcript(skip_network=args.skip_network))

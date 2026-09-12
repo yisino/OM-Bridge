@@ -36,7 +36,7 @@ def configure_logging(level: str | int | None = None, *, force: bool = False) ->
         return logger
 
     if level is None:
-        level = os.environ.get("OM_BRIDGE_LOG_LEVEL") or "INFO"
+        level = os.environ.get("OMB_LOG_LEVEL") or "INFO"
     if isinstance(level, str):
         level = getattr(logging, level.strip().upper(), logging.INFO)
 
@@ -81,6 +81,6 @@ def set_progress_enabled(enabled: bool) -> None:
 
 
 def diagnostic(suffix: str, message: str, *args: object) -> None:
-    """受 ``OM_BRIDGE_LOG_LEVEL`` 控制的诊断日志。"""
+    """受 ``OMB_LOG_LEVEL`` 控制的诊断日志。"""
     get_logger(suffix).debug(message, *args)
 
