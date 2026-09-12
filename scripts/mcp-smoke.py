@@ -152,7 +152,13 @@ def main(argv: list[str] | None = None) -> int:
         bad("capabilities.tools 未声明")
 
     print("\n3. 通知不产生响应")
-    if None not in by_id:
+    # 注意：坏 JSON 的 -32700 解析错误响应**合法地**携带 id:null（JSON-RPC 规范，
+    # 解析失败时无从得知请求 id），必须排除；这里只抓"通知被当成请求回答"的错。
+    spurious_null = [
+        message for message in messages
+        if message.get("id") is None and (message.get("error") or {}).get("code") != -32700
+    ]
+    if not spurious_null:
         ok("notifications/initialized 没有产生响应")
     else:
         bad("通知产生了 id=null 的响应（宿主会把它当成协议错误）")
